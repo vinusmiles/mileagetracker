@@ -1,0 +1,9 @@
+{
+  "name": "mileagemate",
+  "private": true,
+  "type": "module",
+  "description": "Only used to run the calculation tests with Node. The website itself needs no build step.",
+  "scripts": {
+    "test": "node tests/run-node.js"
+  }
+}
