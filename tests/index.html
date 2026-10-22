@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MileageMate tests</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+  li { margin: .25rem 0; }
+  .pass { color: #0B6E4F; } .fail { color: #B42318; }
+  @media (prefers-color-scheme: dark) { .pass { color: #3FB68B; } .fail { color: #F97066; } }
+  small { display: block; color: GrayText; }
+</style>
+</head>
+<body>
+<h1>MileageMate calculation tests</h1>
+<p id="summary">Running…</p>
+<ul id="list"></ul>
+<p><a href="../">Back to the app</a></p>
+<script type="module">
+  import './calc.test.js';
+  import { runAll } from './harness.js';
+  const results = await runAll();
+  const list = document.getElementById('list');
+  for (const r of results) {
+    const li = document.createElement('li');
+    li.className = r.pass ? 'pass' : 'fail';
+    li.textContent = `${r.pass ? '✓' : '✗'} ${r.name}`;
+    if (!r.pass) { const s = document.createElement('small'); s.textContent = r.error; li.append(s); }
+    list.append(li);
+  }
+  const failed = results.filter((r) => !r.pass).length;
+  document.getElementById('summary').textContent = `${results.length - failed} passed, ${failed} failed.`;
+</script>
+</body>
+</html>
