@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>MileageMate</title>
+  <meta name="description" content="Track fuel, mileage and fuel spend for your bikes and cars.">
+  <meta name="theme-color" content="#0B6E4F">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <button class="skip" type="button">Skip to content</button>
+
+  <header class="topbar">
+    <a class="brand" href="#/">
+      <img src="assets/icon.svg" alt="" width="28" height="28">
+      <span>MileageMate</span>
+    </a>
+  </header>
+
+  <nav class="nav" aria-label="Main">
+    <a href="#/" data-nav="dashboard" data-icon="dashboard"><span>Dashboard</span></a>
+    <a href="#/vehicles" data-nav="vehicles" data-icon="vehicles"><span>Vehicles</span></a>
+    <a href="#/fuel/new" data-nav="fuel" data-icon="fuel" class="nav-add"><span>Add fuel</span></a>
+    <a href="#/history" data-nav="history" data-icon="history"><span>History</span></a>
+    <a href="#/settings" data-nav="settings" data-icon="settings"><span>Settings</span></a>
+  </nav>
+
+  <div class="page">
+    <div id="banner" class="banner" hidden></div>
+    <main id="main" tabindex="-1">
+      <p class="loading" role="status">Loading…</p>
+    </main>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+
+  <dialog id="confirm" class="dialog" aria-labelledby="confirm-title">
+    <form method="dialog">
+      <h2 id="confirm-title"></h2>
+      <p class="dlg-msg"></p>
+      <div class="field dlg-type" hidden>
+        <label for="confirm-type"></label>
+        <input id="confirm-type" type="text" autocomplete="off" autocapitalize="off">
+      </div>
+      <div class="dlg-actions">
+        <button class="btn" value="cancel" formnovalidate>Cancel</button>
+        <button class="btn btn-danger" value="ok">Delete</button>
+      </div>
+    </form>
+  </dialog>
+
+  <noscript><p class="noscript">MileageMate needs JavaScript. Please turn it on and reload.</p></noscript>
+</body>
+</html>
