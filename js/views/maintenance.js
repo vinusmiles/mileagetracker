@@ -314,14 +314,17 @@ export async function renderEdit(main, ctx) {
 // ---------------------------------------------------------------------------
 
 const DETAIL_LABELS = { serviceDate: 'Invoice / service date', jobCardDate: 'Job card date', invoiceNumber: 'Invoice number', jobCardNumber: 'Job card number', serviceCentre: 'Service centre', serviceCentreLocation: 'Location', paymentMethod: 'Payment method', warranty: 'Warranty status', serviceType: 'Service type', odometerKm: 'Odometer (km)' };
-const ITEM_NUMS = [['qty', 'Qty'], ['rate', 'Rate (₹)'], ['discount', 'Discount (₹)'], ['taxable', 'Taxable (₹)'], ['cgst', 'CGST (₹)'], ['sgst', 'SGST (₹)']];
+const ITEM_NUMS = [['qty', 'Qty'], ['rate', 'Rate (₹)']];
+// Shown on the entry form. Taxes and other summary values that were read are kept with the
+// record (and shown on the details page) but not edited here, to keep the form short.
+const FORM_SUMMARY = ['partsTotal', 'labourTotal', 'discounts', 'adjustments', 'grandTotal'];
 
 async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = null }) {
   const review = mode === 'review';
   const demo = review && record.source === 'smart-demo';
-  const flags = new Set(review ? (record.fieldsNeedingReview || []) : []);
+  const flags = new Set(); // no 'check this value' prompts: the user simply edits anything wrong
   const confirmed = new Set();
-  const items = (record.items || []).map((i) => ({ ...i }));
+  const items = (record.items || []).map(({ needsReview, ...i }) => ({ ...i })); // no per-line prompts
   const val = (x) => (x === null || x === undefined ? '' : esc(x));
   const entries = await store.listEntries(vehicle.id);
   const services = await store.listServices(vehicle.id);
@@ -339,8 +342,7 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
   const s = record.financialSummary || {};
 
   const itemRow = (it, idx) => `
-    <li class="item-row${it.needsReview && !it.confirmed ? ' needs-review' : ''}" data-idx="${idx}">
-      ${it.needsReview && !it.confirmed ? `<p class="hint"><span class="review-flag">${icon('warn')}Check this line</span><button type="button" class="link-btn" data-confirm-item="${idx}">Looks right</button></p>` : ''}
+    <li class="item-row" data-idx="${idx}">
       <div class="item-main">
         <label class="sr-only" for="it-d-${idx}">Description</label>
         <input id="it-d-${idx}" data-k="description" type="text" maxlength="160" placeholder="Description" value="${val(it.description)}">
@@ -349,11 +351,11 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
       </div>
       <div class="item-meta">
         <select data-k="kind" aria-label="Kind">${Object.entries(ITEM_KINDS).map(([k, l]) => `<option value="${k}"${it.kind === k ? ' selected' : ''}>${l}</option>`).join('')}</select>
-        <label class="item-opt"><input type="checkbox" data-k="optional"${it.section === 'optional' ? ' checked' : ''}> Optional service</label>
         <button type="button" class="link-btn" data-remove-item="${idx}">Remove</button>
       </div>
-      <details class="item-more"><summary>Code, qty, rate, tax</summary>
+      <details class="item-more"><summary>Code, qty, rate</summary>
         <div class="item-grid">
+          <label class="item-opt item-opt-wide"><input type="checkbox" data-k="optional"${it.section === 'optional' ? ' checked' : ''}> Listed under “Optional services” on the invoice</label>
           <label>HSN/SAC or part no.<input data-k="code" type="text" maxlength="40" value="${val(it.code)}"></label>
           ${ITEM_NUMS.map(([k, l]) => `<label>${l}<input data-k="${k}" type="text" inputmode="decimal" value="${val(it[k])}"></label>`).join('')}
         </div>
@@ -381,7 +383,7 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
     ${mode !== 'review' ? `<a class="back" href="${mode === 'edit' ? `#/service/${enc(record.id)}` : `#/maintenance?v=${enc(vehicle.id)}`}">${icon('back')}${mode === 'edit' ? 'Service details' : 'Service history'}</a>` : ''}
     <h1 class="page-title" tabindex="-1">${title}</h1>
     ${demo ? `<div class="notice notice-demo" role="note">${icon('warn')}<div><p><strong>Demo values.</strong> Made up by the demo reader, not read from your pages. Replace them with the real values before saving, or cancel.</p></div></div>` : ''}
-    ${review ? '<p class="hint">Every field can be edited. Values marked Check this value were hard to read: fix them or tap Looks right. Blank means it could not be read.</p>' : ''}
+    ${review ? '<p class="hint">Check the values against your invoice and change anything that is wrong. Blank means it could not be read.</p>' : ''}
     <section class="checks" data-checks aria-live="polite"></section>
     <form class="form svc-form" novalidate>
       <p class="form-error" role="alert" tabindex="-1" hidden></p>
@@ -397,10 +399,6 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
         ${f('serviceType', `<select id="serviceType" name="serviceType">${Object.entries(SERVICE_TYPES).map(([k, l]) => `<option value="${k}"${(record.serviceType || 'other') === k ? ' selected' : ''}>${l}</option>`).join('')}</select>`)}
         ${f('serviceCentre', textIn('serviceCentre'))}
         ${f('serviceCentreLocation', textIn('serviceCentreLocation'))}
-        ${f('invoiceNumber', textIn('invoiceNumber'))}
-        ${f('paymentMethod', textIn('paymentMethod'))}
-        ${f('jobCardNumber', textIn('jobCardNumber'))}
-        ${f('jobCardDate', `<input id="jobCardDate" name="jobCardDate" type="date" value="${val(record.jobCardDate)}">`)}
       </div>
 
       <h2 class="form-section">Odometer</h2>
@@ -410,7 +408,7 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
 
       <h2 class="form-section">Financial breakdown</h2>
       <div class="grid-2">
-        ${Object.entries(SUMMARY_FIELDS).map(([k, l]) => {
+        ${FORM_SUMMARY.map((k) => [k, SUMMARY_FIELDS[k]]).map(([k, l]) => {
           const name = `summary.${k}`;
           let html = field(`sum-${k}`, `${l}${k === 'grandTotal' ? '' : ' (optional)'}`, `<input id="sum-${k}" name="sum-${k}" type="text" inputmode="decimal" autocomplete="off" value="${val(s[k])}">`, hint(name));
           if (flagged(name)) html = html.replace(`class="field" data-field="sum-${k}"`, `class="field needs-review" data-field="sum-${k}"`);
@@ -444,11 +442,12 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
     const fd = new FormData(form);
     const str = (k) => (fd.get(k) || '').toString().trim();
     const summary = {};
-    for (const k of Object.keys(SUMMARY_FIELDS)) summary[k] = n(`sum-${k}`);
+    for (const k of Object.keys(SUMMARY_FIELDS)) summary[k] = FORM_SUMMARY.includes(k) ? n(`sum-${k}`) : (record.financialSummary?.[k] ?? null);
     return {
       id: record.id, vehicleId: fd.get('vehicleId') || currentVehicle.id,
       serviceDate: str('serviceDate'), serviceType: str('serviceType'), serviceCentre: str('serviceCentre'), serviceCentreLocation: str('serviceCentreLocation'),
-      invoiceNumber: str('invoiceNumber'), paymentMethod: str('paymentMethod'), jobCardNumber: str('jobCardNumber'), jobCardDate: str('jobCardDate'),
+      // Not on the form, but kept when read from the invoice (used to spot duplicate uploads).
+      invoiceNumber: record.invoiceNumber || null, paymentMethod: record.paymentMethod || null, jobCardNumber: record.jobCardNumber || null, jobCardDate: record.jobCardDate || null,
       warranty: record.warranty || null, vinLast4: record.vinLast4 || null,
       odometerKm: n('odometerKm'), notes: str('notes'),
       items: items.map(({ needsReview, confirmed: c, ...rest }) => rest), financialSummary: summary,
@@ -534,9 +533,8 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
     const errors = {};
     if (!d.serviceDate || !isValidDateStr(d.serviceDate)) errors.serviceDate = 'Enter the service or invoice date.';
     else if (d.serviceDate > todayStr()) errors.serviceDate = 'The date cannot be in the future.';
-    if (d.jobCardDate && !isValidDateStr(d.jobCardDate)) errors.jobCardDate = 'Enter a real date or leave it empty.';
     if (Number.isNaN(d.odometerKm) || (d.odometerKm !== null && d.odometerKm <= 0)) errors.odometerKm = 'Enter the reading in km, or leave it empty.';
-    for (const k of Object.keys(SUMMARY_FIELDS)) if (Number.isNaN(d.financialSummary[k])) errors[`sum-${k}`] = 'Numbers only, like 1234.50.';
+    for (const k of FORM_SUMMARY) if (Number.isNaN(d.financialSummary[k])) errors[`sum-${k}`] = 'Numbers only, like 1234.50.';
     if (!(d.financialSummary.grandTotal > 0) && !(itemTotals(d.items).all > 0)) errors['sum-grandTotal'] = 'Enter the grand total paid.';
     if (d.items.some((i) => Number.isNaN(i.total))) errors._form = 'Some line totals are not numbers.';
     const pending = [...flags].filter((x) => !confirmed.has(x));

@@ -512,3 +512,4 @@ body.signed-out .page { padding-bottom: 2rem; }
   .topbar { bottom: auto; height: 76px; }
   .nav { z-index: 22; }
 }
+.item-opt-wide { grid-column: 1 / -1; color: var(--ink); font-size: .9rem; }
