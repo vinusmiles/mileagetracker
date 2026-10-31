@@ -506,3 +506,9 @@ body.signed-out .page { padding-bottom: 2rem; }
 .item-grid label { display: grid; gap: .2rem; font-size: .8rem; color: var(--muted); }
 @media (min-width: 640px) { .item-grid { grid-template-columns: repeat(4, 1fr); } }
 .svc-form .form-section { margin-top: 1rem; } .svc-form .item-rows + .btn-sm { justify-self: start; }
+
+/* Desktop: the top bar (logo + gear) must not cover the sidebar menu. */
+@media (min-width: 900px) {
+  .topbar { bottom: auto; height: 76px; }
+  .nav { z-index: 22; }
+}

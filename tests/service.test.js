@@ -82,3 +82,18 @@ test('Invoice schema: cleans values, keeps only chassis last 4, never guesses', 
   assert.ok(!('customerName' in x) && !('phone' in x));
   assert.ok(!x.fieldsNeedingReview.includes('bogus'));
 });
+
+import nexon from './fixtures/nexon-invoice.json' with { type: 'json' };
+test('Nexon fixture: 18 lines reconcile exactly with the invoice summary, no double counting', () => {
+  const x = normaliseInvoice(nexon);
+  const t = itemTotals(x.items);
+  assert.equal(x.items.length, 18);
+  assert.equal(t.parts, 6940.99, 'parts lines = Final Parts Invoice Amount;');
+  assert.equal(t.labour, 6179.07, 'labour lines = Final Labour Invoice Amount;');
+  assert.equal(t.partsCount, 11);
+  const c = reconcile(x).map((r) => r.code);
+  for (const code of ['gross-matches', 'parts-match', 'labour-match']) assert.ok(c.includes(code), code);
+  assert.ok(!c.some((k) => k.endsWith('mismatch')), 'no mismatches');
+  assert.equal(x.serviceDate, '2026-10-30'); assert.equal(x.jobCardDate, '2026-10-29');
+  assert.equal(x.serviceType, 'paid'); assert.equal(x.odometerKm, 19381); assert.equal(x.vinLast4, '2055');
+});

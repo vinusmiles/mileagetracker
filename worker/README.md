@@ -33,7 +33,7 @@ In the Worker, go to **Settings → Variables and Secrets** and add these:
 | `ALLOWED_ORIGINS` | Text | `https://vinusmiles.github.io` |
 | `DAILY_LIMIT` | Text | `30` (scans per user per day) |
 
-Optionally, add `MODEL` (default `claude-haiku-5-5`).
+Optionally, add `MODEL` (fuel receipts) and `MODEL_INVOICE` (service invoices), both defaulting to `claude-haiku-5-5`. Use `claude-sonnet-5-5` for `MODEL_INVOICE` if dense invoices are misread.
 
 ## 5. Connect the website
 

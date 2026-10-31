@@ -72,7 +72,7 @@ export function partsLabourSplit(record) {
 }
 
 const near = (a, b, tol = 1) => Math.abs(a - b) <= tol;
-const fmt = (n) => `₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)}`;
+const fmt = (n) => `${n < 0 ? '−' : ''}₹${new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(n))}`;
 
 /**
  * Check the invoice adds up. Returns [{ level: 'ok'|'warn'|'info', code, message }].

@@ -2,19 +2,20 @@
 // The reader is chosen in config.js (INVOICE_CONFIG.reader) and its result is always
 // cleaned by normaliseInvoice().
 
-import { INVOICE_CONFIG } from './config.js';
+import { activeProvider } from './config.js';
 import { normaliseInvoice } from './invoice-schema.js';
 import * as mock from './providers/mock.js';
 import * as cloud from './providers/cloud.js';
 
 const READERS = { mock, cloud };
-const reader = () => READERS[INVOICE_CONFIG.reader] || mock;
+const reader = () => READERS[activeProvider()] || mock;
 
-export const invoiceReaderIsDemo = () => INVOICE_CONFIG.reader !== 'cloud';
+export const invoiceReaderIsDemo = () => activeProvider() !== 'cloud';
 
 /** @param opts { pages: prepared photos in order, vehicle, latestOdometer, onProgress } */
 export async function extractInvoice(opts) {
   const r = reader();
   if (!r.extractInvoice) throw new Error('This reader cannot read invoices yet.');
-  return normaliseInvoice(await r.extractInvoice(opts));
+  const raw = await r.extractInvoice(opts);
+  return { ...normaliseInvoice(raw), readerModel: raw?.readerModel || null };
 }

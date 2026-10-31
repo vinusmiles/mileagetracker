@@ -192,7 +192,7 @@ export async function renderScan(main, ctx) {
     <a class="back" href="#/maintenance?v=${enc(vehicle.id)}">${icon('back')}Service history</a>
     <h1 class="page-title" tabindex="-1">Scan service invoice</h1>
     <p class="lead">Add all pages of one invoice. They are read together as a single service visit; you check everything before saving.</p>
-    ${demo ? `<div class="notice notice-demo" role="note">${icon('warn')}<div><p><strong>Demo reader.</strong> Invoice reading is not switched on yet (Stage 2). Read invoice fills the review screen with made-up sample values, not values from your pages.</p></div></div>` : ''}
+    ${demo ? `<div class="notice notice-demo" role="note">${icon('warn')}<div><p><strong>Demo reader.</strong> Invoice reading needs the photo reader (set readerUrl). Read invoice fills the review screen with made-up sample values, not values from your pages.</p></div></div>` : ''}
     <form class="form" novalidate>
       ${choices('vehicleId', 'Vehicle', vehicles.map((v) => ({ value: v.id, label: v.nickname, note: [v.make && v.model ? `${v.make} ${v.model}` : '', v.registration].filter(Boolean).join(', ') })), vehicle.id)}
       <section class="photo-slot${scan.pages.length ? ' has-photo' : ''}" aria-labelledby="pages-h">
@@ -568,7 +568,7 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
       try {
         let keep = null;
         if (pages?.length && store.canKeepImages()) keep = await Promise.all(pages.map((p) => blobToDataUrl(p.blob)));
-        if (review) d.extractionMetadata = { reader: d.source === 'smart-demo' ? 'demo' : 'cloud', pages: pages?.length || 0, fieldsNeedingReview: [...flags], readAt: new Date().toISOString() };
+        if (review) d.extractionMetadata = { reader: d.source === 'smart-demo' ? 'demo' : 'cloud', model: record.readerModel || null, pages: pages?.length || 0, fieldsNeedingReview: [...flags], readAt: new Date().toISOString() };
         const saved = await store.saveService(d, keep);
         store.setPref('lastVehicle', saved.vehicleId);
         if (review) resetScan();

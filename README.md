@@ -12,8 +12,9 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | Phase 2: Google sign-in, Cloud Firestore storage, security rules, import of device data | ✅ Live |
 | Smart fuel entry Stage 1: photo capture, review screen, checks, duplicate warning | ✅ Live |
 | Smart fuel entry Stage 2: real photo reading (Cloudflare Worker + Claude Haiku 5.5) | ✅ Live, first real receipt read correctly |
-| Maintenance Stage 1: service history, manual entry, multi-page invoice scan (demo reader), review/edit, pages kept in Firestore | ✅ Built (v0.6); needs updated `firestore.rules` published |
-| Maintenance Stage 2–4: real invoice reading, analytics, reminders | To do |
+| Maintenance Stage 1: service history, manual entry, multi-page invoice scan, review/edit, pages kept in Firestore | ✅ Live (v0.6) |
+| Maintenance Stage 2: real invoice reading (Worker 0.5.0, route `/extract-invoice`) | ✅ Built (v0.7), to verify on the Nexon invoice |
+| Maintenance Stage 3–4: analytics, reminders, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |
 | Stage 4: more real-world photo tests (other companies, glare, faded receipts) | Ongoing |
@@ -25,7 +26,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | Website | https://vinusmiles.github.io/mileagetracker/ (GitHub repo `vinusmiles/mileagetracker`, files at the repo root) |
 | Firebase project | `mileagemate-1311` (Spark plan, free): Authentication (Google) and Firestore (`asia-south1`, Mumbai) |
 | Authorised domain | `vinusmiles.github.io` |
-| Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.4.2) |
+| Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.5.0) |
 | Reader settings | Secret `ANTHROPIC_API_KEY`; text `FIREBASE_PROJECT_ID`, `ALLOWED_ORIGINS`, `DAILY_LIMIT` (30); KV binding `SCANS` → namespace `mileagemate-scans` |
 | AI provider | Claude API (Claude Console, individual account, prepaid credit), key `mileagemate-reader-2`, no expiry, model `claude-haiku-5-5` |
 
@@ -146,6 +147,8 @@ Bottom bar → **Maintenance** (Settings moved to the ⚙️ in the top bar).
 
 Reader instructions handle known traps: Atot/Vtot running totals, "Printed on" times, day/month/year dates, phone camera watermarks, and ODO versus range versus clock on the dashboard. Time, receipt number and location are read but not shown or saved (by choice).
 
+**Invoice model:** `claude-haiku-5-5` by default. If dense invoices are misread, add the Worker setting `MODEL_INVOICE` = `claude-sonnet-5-5` (more accurate, costs more per invoice); no code change needed.
+
 **Cost:** pay-as-you-go from prepaid Claude credit (US$5 added). Estimated at under ₹0.10 per scan; check the real figure in the Claude Console → API keys → Cost column. The daily limit (30 scans per user) and the Console spend limit cap the spend.
 
 **Reader errors and what they mean:**
@@ -158,7 +161,7 @@ Reader instructions handle known traps: Atot/Vtot running totals, "Printed on" t
 | "today's 30 photo scans" | Daily limit reached | Wait until tomorrow (UTC), or raise `DAILY_LIMIT` |
 | "The photo reader is not set up yet" | Secret, project id or `SCANS` binding missing | Re-check the Worker settings |
 
-Opening the Worker address in a browser should show `{"error":"origin-not-allowed",…,"allowedCount":1,"version":"0.4.2"}`: that confirms the version and that the allowed-website setting is loaded.
+Opening the Worker address in a browser should show `{"error":"origin-not-allowed",…,"allowedCount":1,"version":"0.5.0"}`: that confirms the version and that the allowed-website setting is loaded.
 
 ## Phase 2 setup: Firebase (done; kept for reference)
 

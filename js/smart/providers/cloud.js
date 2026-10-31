@@ -56,3 +56,36 @@ export async function extract({ receipt, odometer, onProgress, signal }) {
   if (!data?.result) throw new ReaderError('The photo reader gave no answer. Try again.');
   return data.result;
 }
+
+/**
+ * Service invoice: all pages go in one request and are read as one invoice.
+ * Plain-text body (header line + one base64 page per line) keeps the Worker's CPU use low.
+ */
+export async function extractInvoice({ pages, onProgress, signal }) {
+  const user = auth.currentUser();
+  if (!user) throw new ReaderError('Sign in to use invoice reading.', { retry: false });
+  onProgress?.('send');
+  const token = await user.getIdToken();
+  const data = await Promise.all(pages.map((p) => toBase64(p.blob)));
+  const body = `${JSON.stringify({ docType: 'service-invoice', pages: pages.map(() => ({ mediaType: 'image/jpeg' })) })}\n${data.join('\n')}`;
+
+  let res;
+  try {
+    const request = fetch(`${SMART_CONFIG.readerUrl.replace(/\/$/, '')}/extract-invoice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain', Authorization: `Bearer ${token}` },
+      body,
+      signal,
+    });
+    onProgress?.('read');
+    res = await request;
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err;
+    throw new ReaderError(`Could not reach the photo reader. Check your connection and try again${pages.length > 3 ? ', or try with fewer pages' : ''}.`);
+  }
+  let out = null;
+  try { out = await res.json(); } catch { /* handled below */ }
+  if (!res.ok) throw new ReaderError(out?.message || `The photo reader failed (error ${res.status}).`, { retry: res.status !== 429 && res.status !== 401 });
+  if (!out?.result) throw new ReaderError('The photo reader gave no answer. Try again.');
+  return { ...out.result, readerModel: out.model || null };
+}
