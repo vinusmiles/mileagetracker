@@ -127,7 +127,8 @@ function renderVehicle(main, v, analysis, entries) {
     </dl>
 
     <div class="actions">
-      <a class="btn btn-primary" href="#/history?v=${encodeURIComponent(v.id)}">Full history</a>
+      <a class="btn btn-primary" href="#/history?v=${encodeURIComponent(v.id)}">Fuel &amp; mileage history</a>
+      <a class="btn" href="#/maintenance?v=${encodeURIComponent(v.id)}">${icon('wrench')}Service history</a>
       <a class="btn btn-quiet" href="#/vehicles/${encodeURIComponent(v.id)}/edit">Edit vehicle</a>
     </div>
 

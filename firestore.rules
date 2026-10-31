@@ -73,6 +73,29 @@ service cloud.firestore {
         && shortString(d.createdAt, 40) && shortString(d.updatedAt, 40);
     }
 
+    function validService(d, vehicleId, serviceId) {
+      return d.keys().hasAll(['id', 'vehicleId', 'serviceDate', 'serviceType', 'items', 'financialSummary', 'createdAt', 'updatedAt'])
+        && d.keys().hasOnly(['id', 'vehicleId', 'serviceDate', 'jobCardDate', 'invoiceNumber', 'jobCardNumber',
+                             'serviceCentre', 'serviceCentreLocation', 'serviceType', 'odometerKm', 'paymentMethod',
+                             'warranty', 'vinLast4', 'notes', 'items', 'financialSummary', 'pageCount', 'source',
+                             'extractionMetadata', 'demo', 'createdAt', 'updatedAt'])
+        && d.id == serviceId
+        && d.vehicleId == vehicleId
+        && d.serviceDate is string && d.serviceDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.serviceType in ['free', 'paid', 'general', 'periodic', 'repair', 'breakdown', 'accident', 'other']
+        && (d.odometerKm == null || (d.odometerKm is number && d.odometerKm >= 0 && d.odometerKm <= 9999999))
+        && d.items is list && d.items.size() <= 200
+        && d.financialSummary is map
+        && (!('pageCount' in d) || (d.pageCount is int && d.pageCount >= 0 && d.pageCount <= 10))
+        && (!('vinLast4' in d) || d.vinLast4 == null || (d.vinLast4 is string && d.vinLast4.size() <= 6))
+        && optionalString(d, 'invoiceNumber', 120) && optionalString(d, 'jobCardNumber', 120)
+        && optionalString(d, 'serviceCentre', 120) && optionalString(d, 'serviceCentreLocation', 120)
+        && optionalString(d, 'paymentMethod', 120) && optionalString(d, 'warranty', 120)
+        && optionalString(d, 'jobCardDate', 120) && optionalString(d, 'notes', 500)
+        && (!('source' in d) || d.source in ['manual', 'smart', 'smart-demo'])
+        && shortString(d.createdAt, 40) && shortString(d.updatedAt, 40);
+    }
+
     match /users/{uid} {
       allow read, delete: if isOwner(uid);
       allow create, update: if isOwner(uid) && validUser(request.resource.data);
@@ -84,6 +107,20 @@ service cloud.firestore {
         match /fuelEntries/{entryId} {
           allow read, delete: if isOwner(uid);
           allow create, update: if isOwner(uid) && validEntry(request.resource.data, vehicleId, entryId);
+        }
+
+        match /serviceRecords/{serviceId} {
+          allow read, delete: if isOwner(uid);
+          allow create, update: if isOwner(uid) && validService(request.resource.data, vehicleId, serviceId);
+
+          // Compressed invoice page images (JPEG data URLs, kept under Firestore's 1 MB document limit).
+          match /pages/{pageId} {
+            allow read, delete: if isOwner(uid);
+            allow create, update: if isOwner(uid)
+              && request.resource.data.keys().hasOnly(['index', 'dataUrl'])
+              && request.resource.data.index is int && request.resource.data.index >= 0 && request.resource.data.index < 10
+              && request.resource.data.dataUrl is string && request.resource.data.dataUrl.size() < 900000;
+          }
         }
       }
     }

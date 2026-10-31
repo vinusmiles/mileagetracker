@@ -15,7 +15,7 @@ export function localDataToImport({ includeSkipped = false } = {}) {
   const vehicles = data.vehicles.filter((v) => !v.demo);
   if (!vehicles.length) return null;
   const ids = new Set(vehicles.map((v) => v.id));
-  return { vehicles, entries: data.entries.filter((e) => ids.has(e.vehicleId) && !e.demo) };
+  return { vehicles, entries: data.entries.filter((e) => ids.has(e.vehicleId) && !e.demo), services: (data.services || []).filter((x) => ids.has(x.vehicleId)) };
 }
 
 export async function importLocalData() {

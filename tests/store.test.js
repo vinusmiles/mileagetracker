@@ -92,3 +92,21 @@ test('Store: moving an entry to another vehicle removes it from the old one', as
   assert.equal(last.deleteEntries[0].vehicleId, a.id);
   assert.equal(last.putEntries[0].vehicleId, c.id);
 });
+
+test('Store: service records save with pages (cloud), and vehicle delete removes them', async () => {
+  const b = fakeBackend();
+  await store.useBackend(b);
+  const v = await store.saveVehicle(vehicleIn);
+  const r = await store.saveService({ vehicleId: v.id, serviceDate: '2026-10-30', serviceType: 'paid', odometerKm: 19381, items: [{ description: 'Oil', kind: 'part', section: 'maintenance', total: 3069.5 }], financialSummary: { grandTotal: 13120 } }, ['data:image/jpeg;base64,AA', 'data:image/jpeg;base64,BB']);
+  let last = b.ops[b.ops.length - 1];
+  assert.equal(last.putServices[0].pageCount, 2);
+  assert.equal(last.putPages[0].pages.length, 2);
+  await store.saveService({ ...r, notes: 'edited' }); // pages unchanged
+  last = b.ops[b.ops.length - 1];
+  assert.equal(last.putPages.length, 0);
+  assert.equal(last.putServices[0].pageCount, 2);
+  await store.deleteVehicle(v.id);
+  last = b.ops[b.ops.length - 1];
+  assert.equal(last.deleteServices.length, 1);
+  assert.equal((await store.listServices()).length, 0);
+});

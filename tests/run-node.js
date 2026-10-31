@@ -2,6 +2,7 @@
 import './calc.test.js';
 import './smart.test.js';
 import './store.test.js';
+import './service.test.js';
 import { runAll } from './harness.js';
 
 const results = await runAll();

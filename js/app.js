@@ -13,6 +13,7 @@ import * as fuelForm from './views/fuel-form.js';
 import * as history from './views/history.js';
 import * as settings from './views/settings.js';
 import * as smart from './views/smart.js';
+import * as maintenance from './views/maintenance.js';
 
 const ROUTES = [
   { re: /^\/$/, view: dashboard.render, nav: 'dashboard', title: 'Dashboard' },
@@ -24,6 +25,11 @@ const ROUTES = [
   { re: /^\/fuel\/([^/]+)\/edit$/, view: fuelForm.render, nav: 'history', title: 'Edit fuel entry' },
   { re: /^\/history$/, view: history.render, nav: 'history', title: 'History' },
   { re: /^\/settings$/, view: settings.render, nav: 'settings', title: 'Settings' },
+  { re: /^\/maintenance$/, view: maintenance.renderHistory, nav: 'maintenance', title: 'Maintenance' },
+  { re: /^\/service\/scan$/, view: maintenance.renderScan, nav: 'maintenance', title: 'Scan service invoice' },
+  { re: /^\/service\/new$/, view: maintenance.renderNew, nav: 'maintenance', title: 'Add service' },
+  { re: /^\/service\/([^/]+)\/edit$/, view: maintenance.renderEdit, nav: 'maintenance', title: 'Edit service' },
+  { re: /^\/service\/([^/]+)$/, view: maintenance.renderDetail, nav: 'maintenance', title: 'Service details' },
 ];
 
 const main = document.getElementById('main');

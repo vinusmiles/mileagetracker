@@ -33,7 +33,7 @@ async function decode(file) {
 }
 
 /** Returns { blob, url, width, height, originalBytes, bytes, name }. Call release() when done. */
-export async function preparePhoto(file) {
+export async function preparePhoto(file, { maxEdgePx = SMART_CONFIG.maxEdgePx, quality = SMART_CONFIG.jpegQuality } = {}) {
   checkImageFile(file);
   let src;
   try {
@@ -43,7 +43,7 @@ export async function preparePhoto(file) {
   }
   const w0 = src.width;
   const h0 = src.height;
-  const scale = Math.min(1, SMART_CONFIG.maxEdgePx / Math.max(w0, h0));
+  const scale = Math.min(1, maxEdgePx / Math.max(w0, h0));
   const w = Math.round(w0 * scale);
   const h = Math.round(h0 * scale);
   const canvas = document.createElement('canvas');
@@ -51,11 +51,21 @@ export async function preparePhoto(file) {
   canvas.height = h;
   canvas.getContext('2d').drawImage(src, 0, 0, w, h);
   if (src.close) src.close();
-  const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', SMART_CONFIG.jpegQuality));
+  const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', quality));
   if (!blob) throw new ImageError('This photo could not be processed. Try another one.');
   return { blob, url: URL.createObjectURL(blob), width: w, height: h, originalBytes: file.size, bytes: blob.size, name: file.name };
 }
 
 export function release(photo) {
   if (photo?.url) URL.revokeObjectURL(photo.url);
+}
+
+/** JPEG blob -> data URL (for keeping invoice pages in Firestore). */
+export function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new ImageError('A page could not be prepared.'));
+    r.readAsDataURL(blob);
+  });
 }

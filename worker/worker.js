@@ -19,6 +19,7 @@
 // The AI provider sits behind one function (readWithAnthropic). To switch
 // provider later, add another function with the same input and output.
 
+const WORKER_VERSION = '0.4.2';
 const DEFAULT_MODEL = 'claude-haiku-5-5';
 const MAX_BODY_BYTES = 3_000_000;
 const MAX_IMAGE_B64 = 1_400_000; // about 1 MB per photo; the app sends ~150 KB
@@ -28,8 +29,14 @@ const GOOGLE_JWKS = 'https://www.googleapis.com/service_accounts/v1/jwk/secureto
 export default {
   async fetch(request, env, ctx) {
     const cors = corsHeaders(request, env);
-    if (request.method === 'OPTIONS') return new Response(null, { status: cors ? 204 : 403, headers: cors || {} });
-    if (!cors) return json({ error: 'origin-not-allowed' }, 403);
+    if (request.method === 'OPTIONS') {
+      if (!cors) console.log('origin not allowed:', request.headers.get('Origin'), '| allowed list has', allowedOrigins(env).length, 'entries');
+      return new Response(null, { status: cors ? 204 : 403, headers: cors || {} });
+    }
+    if (!cors) {
+      // Not secret: helps check the ALLOWED_ORIGINS setting.
+      return json({ error: 'origin-not-allowed', yourOrigin: request.headers.get('Origin') || null, allowedCount: allowedOrigins(env).length, version: WORKER_VERSION }, 403);
+    }
     try {
       const url = new URL(request.url);
       if (request.method !== 'POST' || url.pathname !== '/extract') return json({ error: 'not-found' }, 404, cors);
@@ -47,10 +54,13 @@ class HttpError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
 
+// Tolerates stray spaces, quotes, invisible characters and a trailing slash in the setting.
+const cleanOrigin = (o) => String(o || '').replace(/[\u0000-\u0020\u007f-\u00a0\u200b-\u200f\u2060\ufeff'"`]/g, '').replace(/\/+$/, '').toLowerCase();
+const allowedOrigins = (env) => String(env.ALLOWED_ORIGINS || '').split(/[,\n]/).map(cleanOrigin).filter(Boolean);
+
 function corsHeaders(request, env) {
   const origin = request.headers.get('Origin') || '';
-  const allowed = String(env.ALLOWED_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean);
-  if (!allowed.includes(origin)) return null;
+  if (!allowedOrigins(env).includes(cleanOrigin(origin))) return null;
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -252,8 +262,12 @@ async function readWithAnthropic({ receipt, odometer }, env) {
   }
   if (res.status === 429 || res.status === 529) throw new HttpError(503, 'reader-busy', 'The photo reader is busy. Try again in a minute.');
   if (!res.ok) {
-    console.log('provider status', res.status);
-    throw new HttpError(502, 'reader-failed', 'The photo reader could not read these photos. Try again or enter the fill manually.');
+    // Claude's error type and message say why (e.g. permission_error). They never contain the key or photos.
+    let detail = '';
+    try { const e = (await res.json())?.error; detail = `${e?.type || ''}: ${e?.message || ''}`.slice(0, 300); } catch { /* not JSON */ }
+    console.log('provider status', res.status, detail);
+    const err = new HttpError(502, 'reader-failed', `The photo reader could not read these photos (provider ${res.status}${detail ? `, ${detail}` : ''}).`);
+    throw err;
   }
   const data = await res.json();
   const call = (data.content || []).find((b) => b.type === 'tool_use' && b.name === TOOL.name);

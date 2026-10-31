@@ -1,10 +1,50 @@
 # MileageMate
 
-A simple website to track fuel fills, mileage (km/L) and fuel spend for two-wheelers and four-wheelers. Plain HTML, CSS and JavaScript, hosted on GitHub Pages. No build step.
+A mobile-first website to track fuel fills, mileage (km/L) and fuel spend for two-wheelers and four-wheelers, with **Smart fuel entry**: photograph the fuel receipt and the odometer, and MileageMate reads the details for you to check and save.
 
-**Current status: Phase 2.** Sign-in (Google, and optionally mobile number with SMS OTP) and cloud storage in Cloud Firestore. Until you fill in `js/firebase-config.js`, the site keeps working in "this device only" mode.
+Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pages. Indian conventions throughout: ₹, km, litres, DD-MM-YYYY.
 
-Smart fuel entry (`#/smart`) lets you add a receipt photo and/or an odometer photo, then review and save. **The photo reader is still a labelled demo: it does not read the photos.** Real reading arrives in Stage 2 through a secure backend.
+## Status (October 2026)
+
+| Part | State |
+|---|---|
+| Phase 1: vehicles, fuel entries, dashboard, history, mileage engine | ✅ Live |
+| Phase 2: Google sign-in, Cloud Firestore storage, security rules, import of device data | ✅ Live |
+| Smart fuel entry Stage 1: photo capture, review screen, checks, duplicate warning | ✅ Live |
+| Smart fuel entry Stage 2: real photo reading (Cloudflare Worker + Claude Haiku 5.5) | ✅ Live, first real receipt read correctly |
+| Maintenance Stage 1: service history, manual entry, multi-page invoice scan (demo reader), review/edit, pages kept in Firestore | ✅ Built (v0.6); needs updated `firestore.rules` published |
+| Maintenance Stage 2–4: real invoice reading, analytics, reminders | To do |
+| Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
+| Phase 3: deployment checklist | To do |
+| Stage 4: more real-world photo tests (other companies, glare, faded receipts) | Ongoing |
+
+## Live setup
+
+| What | Where |
+|---|---|
+| Website | https://vinusmiles.github.io/mileagetracker/ (GitHub repo `vinusmiles/mileagetracker`, files at the repo root) |
+| Firebase project | `mileagemate-1311` (Spark plan, free): Authentication (Google) and Firestore (`asia-south1`, Mumbai) |
+| Authorised domain | `vinusmiles.github.io` |
+| Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.4.2) |
+| Reader settings | Secret `ANTHROPIC_API_KEY`; text `FIREBASE_PROJECT_ID`, `ALLOWED_ORIGINS`, `DAILY_LIMIT` (30); KV binding `SCANS` → namespace `mileagemate-scans` |
+| AI provider | Claude API (Claude Console, individual account, prepaid credit), key `mileagemate-reader-2`, no expiry, model `claude-haiku-5-5` |
+
+The Firebase web config (`js/firebase-config.js`) and the reader address (`js/smart/config.js`) are public by design. The only secret is the Claude API key, and it lives **only** in the Worker's encrypted secret: never in this repository, chat or website files.
+
+## How it fits together
+
+```
+Phone browser (GitHub Pages site)
+  ├─ Firebase Auth ──── Google sign-in
+  ├─ Cloud Firestore ── users/{uid}/vehicles/{id}/fuelEntries/{id} (rules: owner only)
+  └─ Smart fuel entry
+       photos resized to 1600 px, metadata stripped
+       ──► Cloudflare Worker (checks website, Firebase sign-in token, 30 scans/user/day)
+            ──► Claude API (reads the photos, returns fields only)
+       ◄── fields ──► review screen ──► user confirms ──► Firestore
+```
+
+Photos are never stored: not on the phone, in Firestore, in the Worker or in its logs.
 
 ## Folder structure
 
@@ -12,6 +52,9 @@ Smart fuel entry (`#/smart`) lets you add a receipt photo and/or an odometer pho
 mileagemate/
 ├── index.html            App shell: top bar, navigation, dialog
 ├── firestore.rules       Security rules to paste into Firebase
+├── worker/
+│   ├── worker.js         Cloudflare Worker: the secure photo reader (paste into Cloudflare)
+│   └── README.md         Step-by-step reader setup
 ├── css/styles.css        All styles (mobile first, light and dark)
 ├── assets/icon.svg       App icon
 ├── js/
@@ -27,14 +70,16 @@ mileagemate/
 │   ├── ui.js             Shared UI helpers (dialog, toasts, odometer digits, form errors)
 │   ├── charts.js         Small SVG bar chart, no library
 │   ├── smart/            Smart fuel entry
-│   │   ├── config.js     Which photo reader to use, size limits
+│   │   ├── config.js     readerUrl (the Worker address; empty = demo reader), size limits
 │   │   ├── extractor.js  One entry point; providers are swappable
-│   │   ├── providers/mock.js  Stage 1 demo reader (does not read photos)
+│   │   ├── providers/cloud.js  Real reader: sends photos + sign-in token to the Worker
+│   │   ├── providers/mock.js   Labelled demo reader (does not read photos)
 │   │   ├── schema.js     Cleans any provider's result; unreadable → null + review
 │   │   ├── checks.js     Review checks (arithmetic, fuel type, odometer, dates)
 │   │   ├── duplicates.js Possible-duplicate detection
 │   │   └── images.js     File checks, resize to 1600 px, strips photo metadata
-│   ├── core/             Pure logic, no browser code, fully tested
+│   ├── smart/invoice-schema.js, invoice-extractor.js  Invoice reader result cleaning; reader choice
+│   ├── core/             Pure logic, no browser code, fully tested (service.js: totals, reconciliation, duplicates, odometer timeline)
 │   │   ├── calc.js       Mileage, intervals, monthly totals, price/total maths
 │   │   ├── validate.js   Vehicle and fuel entry checks
 │   │   ├── dates.js      Local-date helpers
@@ -46,6 +91,7 @@ mileagemate/
 │       ├── history.js    Filters, totals, monthly chart, all fills
 │       ├── smart.js      Smart fuel entry: photos → review → save
 │       ├── login.js      Sign-in screen
+│       ├── maintenance.js  Service history, invoice scan, review/edit form, details
 │       ├── settings.js   Sample data, delete all data
 │       └── shared.js     Pieces used by several screens
 ├── tests/
@@ -71,16 +117,50 @@ The app uses JavaScript modules, which browsers refuse to load from a double-cli
 - In a browser: open `tests/` on your local server or on the live site (for example `https://<username>.github.io/mileagemate/tests/`).
 - With Node 18 or newer: `npm test` (nothing to install).
 
-## Put it on GitHub Pages (short version)
+## Updating the live site
 
-1. In GitHub Desktop: *File → New repository*, name it `mileagemate`, choose this folder's parent, create. Or copy these files into a new repository folder.
-2. Commit all files and click *Publish repository* (untick *Keep this code private* if you are on a free plan and want Pages).
-3. On github.com open the repository → *Settings → Pages* → *Source: Deploy from a branch* → branch `main`, folder `/ (root)` → *Save*.
-4. After a minute the site is at `https://<username>.github.io/mileagemate/`.
+1. On github.com, open the `mileagetracker` repository → **Add file → Upload files**, and drag in the changed files or folders, keeping the same folder structure.
+2. Commit. GitHub Pages updates in about a minute. On the phone, close and reopen the tab if you still see the old version.
+3. **Never upload an empty `js/firebase-config.js` or `js/smart/config.js`.** The site would fall back to "this device only" mode or the demo reader. Current zips already contain the live values.
+4. When `worker/worker.js` changes, also paste it into Cloudflare (Workers & Pages → mileagemate-reader → Edit code → Deploy). GitHub does not deploy the Worker.
 
-All links are relative and routing uses `#/…`, so the app works under that sub-path with no extra setup. Full deployment and Firebase steps come in Phase 2 and 3.
+## Vehicle maintenance (service records)
 
-## Phase 2 setup: Firebase
+Bottom bar → **Maintenance** (Settings moved to the ⚙️ in the top bar).
+
+- **Service history** per vehicle: a timeline of services (date, odometer, centre, type, total, parts replaced), filters by year, service type and centre. Tap a record for all line items, the financial breakdown, total checks and the kept invoice pages; edit or delete from there.
+- **Scan service invoice**: add up to 6 pages of one invoice (camera or upload several at once), reorder or remove them, then **Read invoice**. All pages are read together as one service visit. *Stage 1 uses a labelled demo reader; real reading arrives in Stage 2.*
+- **Review**: every field editable; sections for vehicle, service details, odometer, parts replaced, labour and services (with an "optional service" tick), financial breakdown and the pages. Unsure values must be fixed or marked **Looks right**. Live checks: gross + adjustment = grand total, parts and labour lines against their totals (±₹1 rounding), odometer against the fuel/service timeline, possible duplicates (same invoice or job card number, or same date and total).
+- **Add manually** for services without an invoice photo.
+- **Invoice pages** are kept compressed (about 100–300 KB each) in `users/{uid}/vehicles/{vid}/serviceRecords/{id}/pages/{n}`, only when signed in. They show your name and address, and are visible only to your account. Deleting a record deletes its pages.
+- Service records never count as fuel fills and never change mileage. Their odometer readings join the vehicle's odometer timeline for warnings.
+
+**After uploading v0.6, publish the updated `firestore.rules`** (Firebase → Firestore Database → Rules → paste → Publish). Without it, saving a service record shows "The cloud refused this change".
+
+## Smart fuel entry: how photo reading works
+
+1. Add fuel → **Smart fuel entry** → pick the vehicle → add the receipt photo, the odometer photo, or both → **Read details**.
+2. The Worker reads the photos with Claude and returns: date, litres, price per litre, total, fuel type, fuel company, station, odometer (ODO only) and dashboard range.
+3. The review screen shows everything editable. Fields the reader was unsure about are marked **Check this value**, and checks flag litres × rate ≠ total, a fuel type that doesn't match the vehicle, an odometer lower than before or equal to the range, and possible duplicates.
+4. "Full tank?" must be chosen by hand, because a receipt cannot show it. Nothing is saved until you tap **Confirm and save**.
+
+Reader instructions handle known traps: Atot/Vtot running totals, "Printed on" times, day/month/year dates, phone camera watermarks, and ODO versus range versus clock on the dashboard. Time, receipt number and location are read but not shown or saved (by choice).
+
+**Cost:** pay-as-you-go from prepaid Claude credit (US$5 added). Estimated at under ₹0.10 per scan; check the real figure in the Claude Console → API keys → Cost column. The daily limit (30 scans per user) and the Console spend limit cap the spend.
+
+**Reader errors and what they mean:**
+
+| Message or log | Meaning | Fix |
+|---|---|---|
+| "Could not reach the photo reader" / log `OPTIONS … 403` | Worker does not allow the website | Check `ALLOWED_ORIGINS` = `https://vinusmiles.github.io`, then **Deploy** the Worker (variable changes only apply after deploy) |
+| "provider 401" | Claude key wrong or deleted | Paste the current key into the `ANTHROPIC_API_KEY` secret, Deploy |
+| "provider 403, permission_error" | Key not allowed (for example, the Worker still holds a deleted key) | Same as above; make sure the key in Cloudflare is the one listed in the Console |
+| "today's 30 photo scans" | Daily limit reached | Wait until tomorrow (UTC), or raise `DAILY_LIMIT` |
+| "The photo reader is not set up yet" | Secret, project id or `SCANS` binding missing | Re-check the Worker settings |
+
+Opening the Worker address in a browser should show `{"error":"origin-not-allowed",…,"allowedCount":1,"version":"0.4.2"}`: that confirms the version and that the allowed-website setting is loaded.
+
+## Phase 2 setup: Firebase (done; kept for reference)
 
 Do these once in the Firebase console (https://console.firebase.google.com) with your Google account.
 
@@ -132,11 +212,18 @@ The fuel bought at the earlier full tank is not counted, because it replaced fue
 
 ## Data model
 
-Stored locally now in the same shape planned for Firestore (`users/{uid}/vehicles/{vehicleId}/fuelEntries/{entryId}`):
+Stored in Firestore at `users/{uid}/vehicles/{vehicleId}/fuelEntries/{entryId}` (or in the browser in "this device only" mode, same shape):
 
 - **vehicle:** nickname, type (`two` / `four`), make, model, registration, fuelType (`petrol`, `diesel`; `cng`, `electric` reserved), initialOdometer, createdAt, updatedAt
 - **fuel entry:** vehicleId, date (`YYYY-MM-DD`), quantity, unit (`L`, later `kg` / `kWh`), pricePerUnit, totalAmount, station, odometer, fullTank, notes, calculated (which of quantity / price / total was worked out), createdAt, updatedAt
 
-Optional fields saved by Smart fuel entry: time, fuelCompany, location, receiptNumber (text, can contain letters), dashboardRangeKm (reference only, never used as the odometer), source (`manual`, `smart`, `smart-demo`).
+Optional fields saved by Smart fuel entry: time, fuelCompany, location, receiptNumber (text, can contain letters), dashboardRangeKm (reference only, never used as the odometer), source (`manual`, `smart`, `smart-demo`). Smart fuel entry currently saves fuelCompany, dashboardRangeKm and source; time, location and receiptNumber are kept for older entries only.
+- **service record:** vehicleId, serviceDate (invoice date), jobCardDate, invoiceNumber, jobCardNumber, serviceCentre, serviceCentreLocation, serviceType (`free`, `paid`, `general`, `periodic`, `repair`, `breakdown`, `accident`, `other`), odometerKm, paymentMethod, warranty, vinLast4 (only the last 4 characters of the chassis), notes, items[] ({description, kind: part/labour/other, section: maintenance/optional, code, qty, unit, rate, discount, taxable, cgst, sgst, total}), financialSummary ({partsTaxable, partsTotal, labourTaxable, labourTotal, discounts, additionalCharges, taxableAmount, cgst, sgst, otherTax, grossAmount, adjustments, grandTotal}), pageCount, source, extractionMetadata, createdAt, updatedAt
 
 Photos are never saved. They are resized in the browser, kept in memory while you review, and released when you save or cancel.
+
+## Next steps
+
+1. **Phase 3 checklist:** Rules Playground check, second-device sign-in test, Firebase public-facing name ("MileageMate" instead of `mileagemate-1311.firebaseapp.com` on the Google sign-in screen).
+2. **Stage 4:** test Smart fuel entry on more receipts (Indian Oil, HP, Shell, faded or crumpled), daytime dashboards with glare, receipt-only and odometer-only scans; tune the reader's instructions where it misreads.
+3. **Later ideas:** fuel-left estimate and refuel alert (from mileage and tank size), CSV export, CNG and electric vehicles, optional phone OTP sign-in (needs Blaze billing and an SMS region policy).

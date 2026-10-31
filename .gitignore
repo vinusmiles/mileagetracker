@@ -1,0 +1,15 @@
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node (only used for running tests)
+node_modules/
+npm-debug.log*
+
+# Firebase (Phase 2): local config overrides and CLI cache. Never commit secrets.
+.firebase/
+firebase-debug.log
+*.local.js
+service-account*.json

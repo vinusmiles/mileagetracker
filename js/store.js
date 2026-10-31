@@ -50,15 +50,20 @@ export async function useBackend(next) {
   await ensureLoaded();
 }
 
+const withDefaults = (d) => ({ ...d, services: Array.isArray(d.services) ? d.services : [] });
+
 export async function ensureLoaded() {
-  if (!db) db = await backend.load();
+  if (!db) db = withDefaults(await backend.load());
   return db;
 }
 
 /** Reload from the backend, for example when another device may have changed data. */
 export async function reload() {
-  db = await backend.load();
+  db = withDefaults(await backend.load());
 }
+
+/** Invoice images can only be kept in the cloud (they are too large for browser storage). */
+export const canKeepImages = () => backend.kind === 'cloud';
 
 export const backendKind = () => backend.kind;
 
@@ -134,8 +139,9 @@ export async function deleteVehicle(id) {
   const vehicle = d.vehicles.find((v) => v.id === id);
   if (!vehicle) return;
   const gone = d.entries.filter((e) => e.vehicleId === id);
-  const next = { ...d, vehicles: d.vehicles.filter((v) => v.id !== id), entries: d.entries.filter((e) => e.vehicleId !== id) };
-  await apply({ deleteEntries: gone, deleteVehicles: [vehicle] }, next);
+  const goneServices = d.services.filter((x) => x.vehicleId === id);
+  const next = { ...d, vehicles: d.vehicles.filter((v) => v.id !== id), entries: d.entries.filter((e) => e.vehicleId !== id), services: d.services.filter((x) => x.vehicleId !== id) };
+  await apply({ deleteEntries: gone, deleteServices: goneServices, deleteVehicles: [vehicle] }, next);
 }
 
 // ---- Fuel entries -------------------------------------------------------------
@@ -194,6 +200,70 @@ export async function deleteEntry(id) {
   await apply({ deleteEntries: [e] }, { ...d, entries: d.entries.filter((x) => x.id !== id) });
 }
 
+// ---- Service records --------------------------------------------------------------
+
+const SERVICE_TEXT = ['jobCardDate', 'invoiceNumber', 'jobCardNumber', 'serviceCentre', 'serviceCentreLocation', 'paymentMethod', 'warranty', 'vinLast4', 'notes'];
+
+/** All service records, or one vehicle's. Newest first. */
+export async function listServices(vehicleId = null) {
+  const d = await ensureLoaded();
+  return copy(d.services.filter((x) => !vehicleId || x.vehicleId === vehicleId))
+    .sort((a, b) => (b.serviceDate || '').localeCompare(a.serviceDate || '') || (b.odometerKm || 0) - (a.odometerKm || 0));
+}
+
+export async function getService(id) {
+  const x = (await ensureLoaded()).services.find((r) => r.id === id);
+  return x ? copy(x) : null;
+}
+
+/**
+ * Save a service record. `pages` is an array of JPEG data URLs to keep (cloud only),
+ * or null to leave stored pages unchanged.
+ */
+export async function saveService(data, pages = null) {
+  const d = await ensureLoaded();
+  const vehicle = d.vehicles.find((v) => v.id === data.vehicleId);
+  if (!vehicle) throw new StoreError('Choose a vehicle that still exists.');
+  const fields = {
+    vehicleId: data.vehicleId,
+    serviceDate: data.serviceDate,
+    serviceType: data.serviceType || 'other',
+    odometerKm: Number.isFinite(data.odometerKm) ? data.odometerKm : null,
+    items: Array.isArray(data.items) ? data.items : [],
+    financialSummary: data.financialSummary || {},
+    source: ['manual', 'smart', 'smart-demo'].includes(data.source) ? data.source : 'manual',
+    extractionMetadata: data.extractionMetadata || null,
+  };
+  for (const k of SERVICE_TEXT) fields[k] = data[k] ? String(data[k]).trim().slice(0, k === 'notes' ? 500 : 120) : null;
+  const keep = pages && canKeepImages() ? pages : null;
+  let saved;
+  if (data.id) {
+    const old = d.services.find((x) => x.id === data.id);
+    if (!old) throw new StoreError('This service record no longer exists.');
+    saved = { ...old, ...fields, updatedAt: now() };
+    if (keep) saved.pageCount = keep.length;
+  } else {
+    saved = { id: newId(), ...fields, pageCount: keep ? keep.length : 0, demo: vehicle.demo, createdAt: now(), updatedAt: now() };
+  }
+  const old = d.services.find((x) => x.id === saved.id);
+  const next = { ...d, services: [...d.services.filter((x) => x.id !== saved.id), saved] };
+  await apply({ putServices: [saved], putPages: keep ? [{ record: saved, pages: keep, oldCount: old?.pageCount || 0 }] : [] }, next);
+  return copy(saved);
+}
+
+export async function deleteService(id) {
+  const d = await ensureLoaded();
+  const x = d.services.find((r) => r.id === id);
+  if (!x) return;
+  await apply({ deleteServices: [x] }, { ...d, services: d.services.filter((r) => r.id !== id) });
+}
+
+/** The kept invoice pages (data URLs) for a record, in order. */
+export async function getServicePages(record) {
+  if (!record?.pageCount || !backend.loadPages) return [];
+  return backend.loadPages(record);
+}
+
 // ---- Sample data, import and reset ------------------------------------------------
 
 export async function hasDemoData() {
@@ -211,9 +281,10 @@ export async function removeDemoData() {
   const d = await ensureLoaded();
   const demoIds = new Set(d.vehicles.filter((v) => v.demo).map((v) => v.id));
   const gone = d.entries.filter((e) => e.demo || demoIds.has(e.vehicleId));
+  const goneServices = d.services.filter((x) => demoIds.has(x.vehicleId));
   await apply(
-    { deleteEntries: gone, deleteVehicles: d.vehicles.filter((v) => v.demo) },
-    { ...d, vehicles: d.vehicles.filter((v) => !v.demo), entries: d.entries.filter((e) => !gone.includes(e)) },
+    { deleteEntries: gone, deleteServices: goneServices, deleteVehicles: d.vehicles.filter((v) => v.demo) },
+    { ...d, vehicles: d.vehicles.filter((v) => !v.demo), entries: d.entries.filter((e) => !gone.includes(e)), services: d.services.filter((x) => !demoIds.has(x.vehicleId)) },
   );
 }
 
@@ -222,24 +293,27 @@ export async function removeDemoData() {
  * active backend. Records keep their ids, so running it twice adds nothing twice.
  * Sample data is skipped.
  */
-export async function importData({ vehicles, entries }) {
+export async function importData({ vehicles, entries, services = [] }) {
   const d = await ensureLoaded();
   const vs = vehicles.filter((v) => !v.demo);
   const ids = new Set(vs.map((v) => v.id));
   const es = entries.filter((e) => ids.has(e.vehicleId) && !e.demo);
   const esIds = new Set(es.map((e) => e.id));
+  const ss = services.filter((x) => ids.has(x.vehicleId));
+  const ssIds = new Set(ss.map((x) => x.id));
   const next = {
     ...d,
     vehicles: [...d.vehicles.filter((v) => !ids.has(v.id)), ...vs],
     entries: [...d.entries.filter((e) => !esIds.has(e.id)), ...es],
+    services: [...d.services.filter((x) => !ssIds.has(x.id)), ...ss],
   };
-  await apply({ putVehicles: vs, putEntries: es }, next);
+  await apply({ putVehicles: vs, putEntries: es, putServices: ss }, next);
   return { vehicles: vs.length, entries: es.length };
 }
 
 export async function deleteAllData() {
   const d = await ensureLoaded();
-  await apply({ deleteEntries: d.entries, deleteVehicles: d.vehicles }, { version: 1, vehicles: [], entries: [] });
+  await apply({ deleteEntries: d.entries, deleteServices: d.services, deleteVehicles: d.vehicles }, { version: 1, vehicles: [], entries: [], services: [] });
 }
 
 // ---- Small preferences (last used vehicle, and so on) ----------------------------

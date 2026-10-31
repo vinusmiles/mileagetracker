@@ -14,3 +14,11 @@ export const SMART_CONFIG = {
 };
 
 export const activeProvider = () => (SMART_CONFIG.readerUrl ? 'cloud' : 'mock');
+
+// Service invoices. Stage 1 uses the labelled demo reader; Stage 2 switches this to 'cloud'.
+export const INVOICE_CONFIG = {
+  reader: 'mock',
+  maxPages: 6,
+  maxEdgePx: 1800, // invoices have small print; slightly larger than fuel photos
+  jpegQuality: 0.75, // about 150–300 KB per page, kept under Firestore's 1 MB limit
+};

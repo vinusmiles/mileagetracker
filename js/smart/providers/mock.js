@@ -41,3 +41,32 @@ export async function extract({ receipt, odometer, vehicle, lastEntry, onProgres
   }
   return out;
 }
+
+/** DEMO invoice reader for Stage 1: ignores the pages and returns made-up values. */
+export async function extractInvoice({ pages, vehicle, latestOdometer, onProgress }) {
+  onProgress?.('send'); await wait(500);
+  onProgress?.('read'); await wait(500 + pages.length * 300);
+  const two = vehicle?.type === 'two';
+  const items = two
+    ? [
+      { description: 'Demo engine oil', kind: 'part', section: 'maintenance', qty: 1, unit: 'Ltr', rate: 400, taxable: 400, cgst: 36, sgst: 36, total: 472 },
+      { description: 'Demo general service labour', kind: 'labour', section: 'maintenance', qty: 1, rate: 350, taxable: 350, cgst: 31.5, sgst: 31.5, total: 413 },
+      { description: 'Demo washing', kind: 'labour', section: 'optional', qty: 1, rate: 100, taxable: 100, cgst: 9, sgst: 9, total: 118, needsReview: true },
+    ]
+    : [
+      { description: 'Demo engine oil 3.5 L', kind: 'part', section: 'maintenance', qty: 3.5, unit: 'Ltr', rate: 600, taxable: 2100, cgst: 189, sgst: 189, total: 2478 },
+      { description: 'Demo oil filter', kind: 'part', section: 'maintenance', qty: 1, rate: 300, taxable: 300, cgst: 27, sgst: 27, total: 354 },
+      { description: 'Demo periodic service labour', kind: 'labour', section: 'maintenance', qty: 1, rate: 1500, taxable: 1500, cgst: 135, sgst: 135, total: 1770 },
+      { description: 'Demo car wash', kind: 'labour', section: 'optional', qty: 1, rate: 500, taxable: 500, cgst: 45, sgst: 45, total: 590, needsReview: true },
+    ];
+  const parts = items.filter((i) => i.kind === 'part').reduce((s, i) => s + i.total, 0);
+  const labour = items.filter((i) => i.kind === 'labour').reduce((s, i) => s + i.total, 0);
+  return {
+    serviceCentre: 'Demo Service Centre', serviceCentreLocation: 'Sample Road', invoiceNumber: 'DEMO-INV-001',
+    serviceDate: todayStr(), jobCardNumber: 'DEMO-JC-001', jobCardDate: todayStr(), serviceType: 'Paid Service',
+    odometerKm: (latestOdometer || 10000) + (two ? 150 : 450), paymentMethod: 'Cash', warranty: null,
+    items,
+    financialSummary: { partsTotal: parts, labourTotal: labour, grossAmount: parts + labour, adjustments: 0, grandTotal: parts + labour },
+    fieldsNeedingReview: ['odometerKm', 'serviceCentre'],
+  };
+}
