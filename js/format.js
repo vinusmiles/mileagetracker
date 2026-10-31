@@ -1,4 +1,4 @@
-// Display formatting with Indian conventions: ₹, lakh grouping, km, DD-MM-YYYY.
+// Display formatting with Indian conventions: ₹, lakh grouping, km, dates as 22-Oct-2026.
 
 const inr0 = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 const inr2 = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -20,11 +20,11 @@ export const qty = (n, unit = 'L') => (has(n) ? `${dec2.format(n)} ${unit}` : da
 export const mileage = (n, unit = 'L') => (has(n) ? `${dec2.format(n)} km/${unit}` : dash);
 export const perKm = (n) => (has(n) ? `${inr2.format(n)}/km` : dash);
 
-/** 'YYYY-MM-DD' -> 'DD-MM-YYYY' */
+/** 'YYYY-MM-DD' -> '22-Oct-2026' */
 export function date(s) {
   if (!s) return dash;
   const [y, m, d] = s.split('-');
-  return `${d}-${m}-${y}`;
+  return `${d}-${MONTHS[Number(m) - 1] || m}-${y}`;
 }
 
 /** 'YYYY-MM' -> 'Oct 2026' (or 'October 2026' when long) */

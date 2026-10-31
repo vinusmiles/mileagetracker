@@ -1,5 +1,5 @@
 // Sign-in with Firebase Authentication: Google, and phone number with SMS OTP.
-// No passwords or OTP codes are ever stored by MileageMate; Firebase handles them.
+// No passwords or OTP codes are ever stored by GaadiKhata; Firebase handles them.
 
 import { isConfigured, loadFirebase } from './cloud/firebase.js';
 import { authOptions } from './firebase-config.js';

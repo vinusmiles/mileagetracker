@@ -72,11 +72,14 @@ function demoNotice() {
 function slotHTML(kind) {
   const photo = session[kind];
   const isReceipt = kind === 'receipt';
-  const title = isReceipt ? 'Fuel receipt' : 'Odometer';
-  const help = isReceipt ? 'The bill from the pump showing litres, rate, amount and date.' : 'The dashboard with the ODO reading clearly visible.';
+  const title = isReceipt ? 'Fuel bill or pump reading' : 'Odometer';
+  const help = isReceipt ? 'The printed bill, or a photo of the pump display showing amount, litres and rate.' : 'The dashboard with the ODO reading clearly visible.';
+  const examples = isReceipt
+    ? [['fuel-bill.webp', 'Example: printed fuel bill'], ['pump-reading.webp', 'Example: pump display']]
+    : [['odometer.webp', 'Example: dashboard with ODO reading']];
   const preview = photo
     ? `<img src="${photo.url}" alt="${title} photo preview">`
-    : `<div class="photo-empty">${icon(isReceipt ? 'receipt' : 'dashboard')}<span>No photo yet</span></div>`;
+    : `<div class="photo-examples">${examples.map(([f, alt]) => `<a href="assets/samples/${f}" target="_blank" rel="noopener"><img src="assets/samples/${f}" alt="${alt}" loading="lazy"></a>`).join('')}<span class="example-tag">Example${examples.length > 1 ? 's' : ''}</span></div>`;
   return `
     <section class="photo-slot${photo ? ' has-photo' : ''}" data-slot="${kind}" aria-labelledby="slot-${kind}">
       <div class="photo-text">
@@ -160,7 +163,7 @@ function renderCapture(main, vehicles, ctx) {
     const vehicle = vehicles.find((v) => v.id === session.vehicleId);
     const entries = sortEntries(await store.listEntries(vehicle.id));
     const progress = form.querySelector('[data-progress]');
-    const what = session.receipt && session.odometer ? 'receipt and odometer' : session.receipt ? 'receipt' : 'odometer';
+    const what = session.receipt && session.odometer ? 'fuel bill and odometer' : session.receipt ? 'fuel bill' : 'odometer';
     const steps = [
       ['prepare', 'Preparing photos'],
       ['send', providerInfo().isDemo ? 'Starting the demo reader' : 'Sending photos securely'],
@@ -209,12 +212,14 @@ function renderCapture(main, vehicles, ctx) {
 function startReview(result) {
   session.result = result;
   session.step = 'review';
-  session.needsReview = new Set(result.fieldsNeedingReview.map((f) => FORM_NAME[f]).filter((n) => n && (RECEIPT_NAMES.includes(n) || ODO_NAMES.includes(n))));
+  session.needsReview = new Set(); // no 'check this value' prompts: the user simply edits anything wrong
   session.confirmed = new Set();
   session.values = {
     date: result.transactionDate, time: result.transactionTime, fuelType: result.fuelType, quantity: result.quantityLitres,
     pricePerUnit: result.pricePerLitre, totalAmount: result.totalAmount, fuelCompany: result.fuelCompany, station: result.fuelStation,
     location: result.location, receiptNumber: result.receiptNumber, odometer: result.odometerKm, dashboardRangeKm: result.dashboardRangeKm,
+    // A pump display has no date; people photograph it while filling, so default to today.
+    ...(result.billKind === 'pump-display' && !result.transactionDate ? { date: todayStr() } : {}),
     fullTank: null, notes: '',
   };
 }
@@ -238,9 +243,7 @@ async function renderReview(main, vehicles, ctx) {
   };
   const hintFor = (name, base = '') => {
     const parts = [];
-    if (session.needsReview.has(name) && !session.confirmed.has(name)) {
-      parts.push(`<span class="review-flag">${icon('warn')}Check this value</span><button type="button" class="link-btn" data-confirm="${name}">Looks right</button>`);
-    } else if (notFound(name)) {
+    if (notFound(name)) {
       parts.push('<span class="not-found">Not found on the photo</span>');
     }
     if (base) parts.push(base);
@@ -253,7 +256,7 @@ async function renderReview(main, vehicles, ctx) {
   };
   const textIn = (name, max = LIMITS.textMax, mode = 'text') => `<input id="${name}" name="${name}" type="text" inputmode="${mode}" maxlength="${max}" autocomplete="off" value="${val(v[name])}">`;
   const fuelOpts = [['', 'Not shown'], ...Object.entries(FUEL_TYPES).map(([k, t]) => [k, t.label])];
-  const thumbs = ['receipt', 'odometer'].filter((k) => session[k]).map((k) => `<a href="${session[k].url}" target="_blank" rel="noopener" class="thumb"><img src="${session[k].url}" alt="${k === 'receipt' ? 'Receipt' : 'Odometer'} photo, opens full size"></a>`).join('');
+  const thumbs = ['receipt', 'odometer'].filter((k) => session[k]).map((k) => `<a href="${session[k].url}" target="_blank" rel="noopener" class="thumb"><img src="${session[k].url}" alt="${k === 'receipt' ? 'Fuel bill' : 'Odometer'} photo, opens full size"></a>`).join('');
 
   main.innerHTML = `
     <h1 class="page-title" tabindex="-1">Check the details</h1>
@@ -262,12 +265,12 @@ async function renderReview(main, vehicles, ctx) {
       <p>For <strong>${esc(vehicle.nickname)}</strong><br><span class="muted">${vehicleSubtitle(vehicle)}</span></p>
       <div class="thumbs">${thumbs}</div>
     </div>
-    <p class="hint">Every field can be edited. Fields marked Check this value were hard to read: fix them, or tap Looks right.</p>
+    <p class="hint">Check the values against your photos and change anything that is wrong.</p>
     <section class="checks" data-checks aria-live="polite"></section>
     <form class="form" novalidate>
       <p class="form-error" role="alert" tabindex="-1" hidden></p>
       <h2 class="form-section">Fill</h2>
-      ${f('date', `<input id="date" name="date" type="date" max="${todayStr()}" value="${val(v.date)}">`, 'From the receipt, not the day you took the photo.')}
+      ${f('date', `<input id="date" name="date" type="date" max="${todayStr()}" value="${val(v.date)}">`, r.billKind === 'pump-display' && !r.transactionDate ? 'A pump display shows no date, so today is filled in. Change it if you filled on another day.' : 'From the bill, not the day you took the photo.')}
       <div class="grid-3">
         ${f('quantity', textIn('quantity', 12, 'decimal'))}
         ${f('pricePerUnit', textIn('pricePerUnit', 12, 'decimal'))}
@@ -372,11 +375,6 @@ async function renderReview(main, vehicles, ctx) {
       if (Number.isNaN(d[k])) errors[k] = 'Enter numbers only, like 20.50.';
     }
     if (d.fullTank === null) errors.fullTank = 'Choose whether the tank was filled to full.';
-    const pending = [...session.needsReview].filter((n) => !session.confirmed.has(n));
-    if (pending.length) {
-      for (const n of pending) errors[n] = 'Check this value, then edit it or tap Looks right.';
-      errors._form = `Please check: ${pending.map((n) => LABELS[n]).join(', ')}.`;
-    }
     if (Object.keys(errors).length) { showFieldErrors(form, errors); return; }
 
     const entry = { ...d, fullTank: d.fullTank, calculated: [], source: demo ? 'smart-demo' : 'smart' };

@@ -84,6 +84,27 @@ export async function renderHistory(main, { query, navigate }) {
 }
 
 // ---------------------------------------------------------------------------
+// Add service chooser (#/service/add?v=id), like Add fuel
+// ---------------------------------------------------------------------------
+
+export async function renderAddChooser(main, { query }) {
+  const vehicles = await store.listVehicles();
+  if (!vehicles.length) return noVehicles(main, 'Add service');
+  const v = await pickVehicle(vehicles, query);
+  main.innerHTML = `
+    <a class="back" href="#/vehicles">${icon('back')}My vehicles</a>
+    <h1 class="page-title" tabindex="-1">Add service</h1>
+    <p class="subtitle">${esc(v.nickname)}${vehicleLine(v) ? `, ${vehicleLine(v)}` : ''}</p>
+    <div class="choose">
+      <a class="choose-main" href="#/service/scan?v=${enc(v.id)}">
+        <span class="choose-icon">${icon('camera')}</span>
+        <span><strong>Scan service invoice</strong><span>Take or upload photos of all invoice pages. You check the details before saving.</span></span>
+      </a>
+      <a class="btn btn-block" href="#/service/new?v=${enc(v.id)}">${icon('wrench')}Add details manually</a>
+    </div>`;
+}
+
+// ---------------------------------------------------------------------------
 // Service details (#/service/:id)
 // ---------------------------------------------------------------------------
 
@@ -332,7 +353,7 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
   const latest = timeline.filter((t) => !(t.source === 'service' && t.id === record.id)).slice(-1)[0];
 
   const flagged = (name) => flags.has(name) && !confirmed.has(name);
-  const hint = (name, base = '') => [flagged(name) ? `<span class="review-flag">${icon('warn')}Check this value</span><button type="button" class="link-btn" data-confirm="${name}">Looks right</button>` : '', base].filter(Boolean).join(' ');
+  const hint = (name, base = '') => base;
   const f = (name, input, base) => {
     let html = field(name, DETAIL_LABELS[name] || name, input, hint(name, base));
     if (flagged(name)) html = html.replace(`class="field" data-field="${name}"`, `class="field needs-review" data-field="${name}"`);
@@ -537,12 +558,6 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
     for (const k of FORM_SUMMARY) if (Number.isNaN(d.financialSummary[k])) errors[`sum-${k}`] = 'Numbers only, like 1234.50.';
     if (!(d.financialSummary.grandTotal > 0) && !(itemTotals(d.items).all > 0)) errors['sum-grandTotal'] = 'Enter the grand total paid.';
     if (d.items.some((i) => Number.isNaN(i.total))) errors._form = 'Some line totals are not numbers.';
-    const pending = [...flags].filter((x) => !confirmed.has(x));
-    const pendingItems = items.filter((i) => i.needsReview && !i.confirmed).length;
-    if (pending.length || pendingItems) {
-      for (const p of pending) errors[p.startsWith('summary.') ? `sum-${p.slice(8)}` : p] = 'Check this value, then edit it or tap Looks right.';
-      errors._form = `Please check ${[...pending.map((p) => DETAIL_LABELS[p] || SUMMARY_FIELDS[p.slice(8)] || p), pendingItems ? `${pendingItems} line${pendingItems === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ')}.`;
-    }
     if (!showFieldErrors(form, errors)) return;
 
     const dups = findServiceDuplicates(d, await store.listServices(d.vehicleId));

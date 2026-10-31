@@ -38,7 +38,7 @@ const ISSUE_TEXT = {
 
 /**
  * One fuel entry as a list row. `row` comes from analyseVehicle().rows.
- * Recorded values are plain; values MileageMate calculated carry class "calc".
+ * Recorded values are plain; values GaadiKhata calculated carry class "calc".
  */
 export function entryRow(row, vehicle, { showVehicle = false } = {}) {
   const e = row.entry;
@@ -74,4 +74,4 @@ export function entryRow(row, vehicle, { showVehicle = false } = {}) {
   </li>`;
 }
 
-export const calcLegend = '<p class="legend"><span class="calc">Underlined values</span> are calculated by MileageMate. Everything else is what you recorded.</p>';
+export const calcLegend = '<p class="legend"><span class="calc">Underlined values</span> are calculated by GaadiKhata. Everything else is what you recorded.</p>';

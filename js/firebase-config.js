@@ -1,4 +1,4 @@
-// Firebase settings for MileageMate.
+// Firebase settings for GaadiKhata.
 //
 // Paste the values from Firebase console → Project settings → General →
 // Your apps → Web app → SDK setup and configuration ("Config").

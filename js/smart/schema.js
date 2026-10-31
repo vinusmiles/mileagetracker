@@ -19,7 +19,8 @@ export function emptyExtraction({ receiptProvided = false, odometerProvided = fa
   return {
     ...out,
     currency: 'INR',
-    receiptIsFuel: null, // false when the receipt image is not a fuel bill
+    receiptIsFuel: null, // false when the bill image is not a fuel bill or pump display
+    billKind: null, // 'printed-bill' | 'pump-display' (a photo of the dispenser screen)
     odometerReadable: null, // false when no odometer could be found in the photo
     fieldsNeedingReview: [],
     sourceImages: { receiptProvided, odometerProvided },
@@ -74,6 +75,7 @@ export function normaliseExtraction(raw, sources) {
     }
     set('receiptNumber', text(r.receiptNumber, 40)); // text: receipt numbers can contain letters
     if (typeof r.receiptIsFuel === 'boolean') out.receiptIsFuel = r.receiptIsFuel;
+    if (['printed-bill', 'pump-display'].includes(r.billKind)) out.billKind = r.billKind;
   }
 
   if (sources.odometerProvided) {

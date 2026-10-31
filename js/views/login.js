@@ -17,7 +17,7 @@ export async function render(main) {
   main.innerHTML = `
     <div class="login">
       <img src="assets/icon.svg" alt="" width="56" height="56" class="login-logo">
-      <h1 class="page-title" tabindex="-1">Sign in to MileageMate</h1>
+      <h1 class="page-title" tabindex="-1">Sign in to GaadiKhata</h1>
       <p class="lead">Your vehicles and fuel records are saved to your own private account and follow you to any device.</p>
 
       <p class="form-error" role="alert" tabindex="-1" hidden></p>
@@ -51,7 +51,7 @@ export async function render(main) {
         <div id="recaptcha"></div>
         <p class="hint">Firebase runs a hidden security check to block automated sign-ups.</p>` : ''}
 
-      <p class="hint login-note">MileageMate never sees your Google password and never stores SMS codes. Firebase handles sign-in.</p>
+      <p class="hint login-note">GaadiKhata never sees your Google password and never stores SMS codes. Firebase handles sign-in.</p>
     </div>`;
 
   const errBox = main.querySelector('.form-error');

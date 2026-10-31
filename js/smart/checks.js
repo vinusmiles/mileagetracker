@@ -17,7 +17,7 @@ export function reviewChecks(v, { vehicle, entries = [], today }) {
   const src = v.sourceImages || {};
 
   if (src.receiptProvided && v.receiptIsFuel === false) {
-    out.push({ level: 'warn', code: 'not-fuel-receipt', message: 'The receipt photo does not look like a fuel bill. Check the values or enter them yourself.', fields: [] });
+    out.push({ level: 'warn', code: 'not-fuel-receipt', message: 'The fuel bill photo does not look like a fuel bill or pump display. Check the values or enter them yourself.', fields: [] });
   }
   if (src.odometerProvided && v.odometerReadable === false) {
     out.push({ level: 'warn', code: 'odometer-unreadable', message: 'No odometer reading could be found in the dashboard photo. Enter it yourself.', fields: ['odometer'] });
@@ -32,13 +32,13 @@ export function reviewChecks(v, { vehicle, entries = [], today }) {
   }
   if (!isPos(v.quantity)) out.push({ level: 'info', code: 'quantity-missing', message: 'Enter the litres filled.', fields: ['quantity'] });
   if (!isPos(v.totalAmount)) out.push({ level: 'info', code: 'amount-missing', message: 'Enter the total amount paid.', fields: ['totalAmount'] });
-  if (!v.date) out.push({ level: 'info', code: 'date-missing', message: 'Enter the date of the fill from the receipt.', fields: ['date'] });
+  if (!v.date) out.push({ level: 'info', code: 'date-missing', message: 'Enter the date of the fill.', fields: ['date'] });
   if (!isPos(v.odometer)) out.push({ level: 'info', code: 'odometer-missing', message: 'Enter the odometer reading. Mileage needs it.', fields: ['odometer'] });
 
   if (v.fuelType && vehicle && v.fuelType !== vehicle.fuelType) {
     const r = FUEL_TYPES[v.fuelType]?.label || v.fuelType;
     const w = FUEL_TYPES[vehicle.fuelType]?.label || vehicle.fuelType;
-    out.push({ level: 'warn', code: 'fuel-type-mismatch', message: `The receipt says ${r}, but ${vehicle.nickname} uses ${w}. Check you picked the right vehicle.`, fields: ['fuelType'] });
+    out.push({ level: 'warn', code: 'fuel-type-mismatch', message: `The bill says ${r}, but ${vehicle.nickname} uses ${w}. Check you picked the right vehicle.`, fields: ['fuelType'] });
   }
 
   if (isPos(v.odometer) && Number.isFinite(v.dashboardRangeKm) && v.odometer === v.dashboardRangeKm) {

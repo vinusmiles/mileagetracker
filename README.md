@@ -1,8 +1,10 @@
-# MileageMate
+# GaadiKhata
 
-A mobile-first website to track fuel fills, mileage (km/L) and fuel spend for two-wheelers and four-wheelers, with **Smart fuel entry**: photograph the fuel receipt and the odometer, and MileageMate reads the details for you to check and save.
+*(Formerly MileageMate. The repository is still `mileagetracker`; internal storage keys keep the old name so existing data keeps working.)*
 
-Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pages. Indian conventions throughout: ₹, km, litres, DD-MM-YYYY.
+A mobile-first website to track fuel fills, mileage (km/L) and fuel spend for two-wheelers and four-wheelers, with **Smart fuel entry**: photograph the fuel receipt and the odometer, and GaadiKhata reads the details for you to check and save.
+
+Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pages. Indian conventions throughout: ₹, km, litres, dates shown as 22-Oct-2026.
 
 ## Status (October 2026)
 
@@ -14,6 +16,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | Smart fuel entry Stage 2: real photo reading (Cloudflare Worker + Claude Haiku 5.5) | ✅ Live, first real receipt read correctly |
 | Maintenance Stage 1: service history, manual entry, multi-page invoice scan, review/edit, pages kept in Firestore | ✅ Live (v0.6) |
 | Maintenance Stage 2: real invoice reading (Worker 0.5.0, route `/extract-invoice`) | ✅ Built (v0.7), to verify on the Nexon invoice |
+| v0.8: GaadiKhata name, Add service on vehicles, pump-display photos, example photos, no "Looks right" prompts, 22-Oct-2026 dates | ✅ Built |
 | Maintenance Stage 3–4: analytics, reminders, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |
@@ -26,7 +29,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | Website | https://vinusmiles.github.io/mileagetracker/ (GitHub repo `vinusmiles/mileagetracker`, files at the repo root) |
 | Firebase project | `mileagemate-1311` (Spark plan, free): Authentication (Google) and Firestore (`asia-south1`, Mumbai) |
 | Authorised domain | `vinusmiles.github.io` |
-| Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.5.0) |
+| Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.5.1) |
 | Reader settings | Secret `ANTHROPIC_API_KEY`; text `FIREBASE_PROJECT_ID`, `ALLOWED_ORIGINS`, `DAILY_LIMIT` (30); KV binding `SCANS` → namespace `mileagemate-scans` |
 | AI provider | Claude API (Claude Console, individual account, prepaid credit), key `mileagemate-reader-2`, no expiry, model `claude-haiku-5-5` |
 
@@ -140,9 +143,10 @@ Bottom bar → **Maintenance** (Settings moved to the ⚙️ in the top bar).
 
 ## Smart fuel entry: how photo reading works
 
-1. Add fuel → **Smart fuel entry** → pick the vehicle → add the receipt photo, the odometer photo, or both → **Read details**.
+1. Add fuel → **Smart fuel entry** → pick the vehicle → add the **fuel bill or pump reading** photo, the odometer photo, or both → **Read details**. Example photos are shown in the empty slots (`assets/samples/`, WebP so they pass the publish filter).
+   A **pump display** photo works too: the reader takes Amount, Volume and the Rate that matches them (dispensers often show two rates), and fills in today's date because the display shows none.
 2. The Worker reads the photos with Claude and returns: date, litres, price per litre, total, fuel type, fuel company, station, odometer (ODO only) and dashboard range.
-3. The review screen shows everything editable. Fields the reader was unsure about are marked **Check this value**, and checks flag litres × rate ≠ total, a fuel type that doesn't match the vehicle, an odometer lower than before or equal to the range, and possible duplicates.
+3. The review screen shows everything editable; you simply change anything that is wrong (no confirmation prompts). Checks flag litres × rate ≠ total, a fuel type that doesn't match the vehicle, an odometer lower than before or equal to the range, and possible duplicates.
 4. "Full tank?" must be chosen by hand, because a receipt cannot show it. Nothing is saved until you tap **Confirm and save**.
 
 Reader instructions handle known traps: Atot/Vtot running totals, "Printed on" times, day/month/year dates, phone camera watermarks, and ODO versus range versus clock on the dashboard. Time, receipt number and location are read but not shown or saved (by choice).
@@ -161,14 +165,14 @@ Reader instructions handle known traps: Atot/Vtot running totals, "Printed on" t
 | "today's 30 photo scans" | Daily limit reached | Wait until tomorrow (UTC), or raise `DAILY_LIMIT` |
 | "The photo reader is not set up yet" | Secret, project id or `SCANS` binding missing | Re-check the Worker settings |
 
-Opening the Worker address in a browser should show `{"error":"origin-not-allowed",…,"allowedCount":1,"version":"0.5.0"}`: that confirms the version and that the allowed-website setting is loaded.
+Opening the Worker address in a browser should show `{"error":"origin-not-allowed",…,"allowedCount":1,"version":"0.5.1"}`: that confirms the version and that the allowed-website setting is loaded.
 
 ## Phase 2 setup: Firebase (done; kept for reference)
 
 Do these once in the Firebase console (https://console.firebase.google.com) with your Google account.
 
 1. **Create a project.** Add project → any name (for example `mileagemate`). Google Analytics is not needed.
-2. **Register the website.** Project overview → the `</>` (Web) icon → nickname `MileageMate` → Register (skip Firebase Hosting; GitHub Pages hosts the site). Copy `apiKey`, `authDomain`, `projectId` and `appId` from the config shown into `js/firebase-config.js`.
+2. **Register the website.** Project overview → the `</>` (Web) icon → nickname `GaadiKhata` → Register (skip Firebase Hosting; GitHub Pages hosts the site). Copy `apiKey`, `authDomain`, `projectId` and `appId` from the config shown into `js/firebase-config.js`.
 3. **Turn on Google sign-in.** Build → Authentication → Get started → Sign-in method → Google → Enable → choose your support email → Save.
 4. **Allow your website address.** Authentication → Settings → Authorized domains → Add domain → `vinusmiles.github.io` (only the domain, no `https://` and no `/mileagetracker/`).
 5. **Create the database.** Build → Firestore Database → Create database → **production mode** → location `asia-south1 (Mumbai)`. The location cannot be changed later.
@@ -201,7 +205,7 @@ Abuse protection already in the app: Firebase's invisible reCAPTCHA on every SMS
 
 ### What is stored, and where
 
-Each user's data lives only under `users/{uid}`. No passwords or OTP codes are stored by MileageMate. A copy of your data is kept in the browser (IndexedDB) so the app opens quickly and works with a weak signal; signing out clears it. Photos from Smart fuel entry are never uploaded or saved.
+Each user's data lives only under `users/{uid}`. No passwords or OTP codes are stored by GaadiKhata. A copy of your data is kept in the browser (IndexedDB) so the app opens quickly and works with a weak signal; signing out clears it. Photos from Smart fuel entry are never uploaded or saved.
 
 ## How mileage is calculated
 
@@ -227,6 +231,6 @@ Photos are never saved. They are resized in the browser, kept in memory while yo
 
 ## Next steps
 
-1. **Phase 3 checklist:** Rules Playground check, second-device sign-in test, Firebase public-facing name ("MileageMate" instead of `mileagemate-1311.firebaseapp.com` on the Google sign-in screen).
+1. **Phase 3 checklist:** Rules Playground check, second-device sign-in test, Firebase public-facing name ("GaadiKhata" instead of `mileagemate-1311.firebaseapp.com` on the Google sign-in screen).
 2. **Stage 4:** test Smart fuel entry on more receipts (Indian Oil, HP, Shell, faded or crumpled), daytime dashboards with glare, receipt-only and odometer-only scans; tune the reader's instructions where it misreads.
 3. **Later ideas:** fuel-left estimate and refuel alert (from mileage and tank size), CSV export, CNG and electric vehicles, optional phone OTP sign-in (needs Blaze billing and an SMS region policy).

@@ -39,6 +39,7 @@ export async function renderList(main) {
         </dl>
         <div class="actions actions-tight">
           <a class="btn btn-primary btn-sm" href="#/fuel/new?v=${id}">${icon('fuel')}Add fuel</a>
+          <a class="btn btn-sm" href="#/service/add?v=${id}">${icon('wrench')}Add service</a>
           <a class="btn btn-sm" href="#/?v=${id}">Details</a>
           <a class="btn btn-quiet btn-sm" href="#/vehicles/${id}/edit">Edit</a>
         </div>

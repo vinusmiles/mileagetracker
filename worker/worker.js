@@ -1,4 +1,4 @@
-// MileageMate photo reader: a Cloudflare Worker.
+// GaadiKhata photo reader: a Cloudflare Worker.
 //
 // The website sends a signed-in user's receipt and/or odometer photo here.
 // This Worker:
@@ -20,7 +20,7 @@
 // The AI provider sits behind one function (readWithAnthropic). To switch
 // provider later, add another function with the same input and output.
 
-const WORKER_VERSION = '0.5.0';
+const WORKER_VERSION = '0.5.1';
 const DEFAULT_MODEL = 'claude-haiku-5-5';
 const MAX_BODY_BYTES = 3_000_000;
 const MAX_IMAGE_B64 = 1_400_000; // about 1 MB per photo; the app sends ~150 KB
@@ -218,12 +218,14 @@ async function verifyFirebaseToken(token, env) {
 // thinking, which keeps scans fast and cheap). Check the docs before changing MODEL.
 // ---------------------------------------------------------------------------
 
-const INSTRUCTIONS = `You read Indian fuel-pump receipts and vehicle dashboard photos for a mileage tracking app.
+const INSTRUCTIONS = `You read Indian fuel bills, fuel-pump display photos and vehicle dashboard photos for a mileage tracking app.
 Return the details by calling the record_fuel_details tool exactly once.
 
 Golden rule: never guess. If a value is not clearly visible, use null. If you can read it but are not sure (blur, glare, a digit that could be two things), give your best reading AND list the field in fieldsNeedingReview.
 
-Receipt photo:
+Fuel bill photo: either a printed fuel bill / receipt, or a photo of the pump's display ("bunk reading").
+- billKind: "printed-bill" or "pump-display".
+- Pump display: it shows Amount (₹), Volume (L) and one or more Rate (₹/L) windows. A dispenser serving two fuel grades shows two rates; pricePerLitre is the one where Volume × Rate ≈ Amount. A pump display has no date, time, station or receipt number: leave those null. receiptIsFuel is true.
 - quantityLitres: the volume dispensed (often "Volume(L)" or "Qty"). Strip leading zeros: "00020.00" is 20.
 - pricePerLitre: the rate ("Rate(Rs/L)"). totalAmount: the amount paid for this sale ("Amount(Rs)", "Sale").
 - Ignore "Atot", "Vtot", "Totalizer" or other running totals: they are the pump's lifetime counters, not this sale.
@@ -263,6 +265,7 @@ const TOOL = {
       totalAmount: { type: ['number', 'null'] },
       receiptNumber: { type: ['string', 'null'] },
       receiptIsFuel: { type: ['boolean', 'null'] },
+      billKind: { type: ['string', 'null'], enum: ['printed-bill', 'pump-display', null] },
       odometerKm: { type: ['number', 'null'] },
       dashboardRangeKm: { type: ['number', 'null'] },
       dashboardTime: { type: ['string', 'null'] },
@@ -276,10 +279,10 @@ const TOOL = {
 async function readWithAnthropic({ receipt, odometer }, env) {
   const content = [];
   if (receipt) {
-    content.push({ type: 'text', text: 'Photo 1: fuel receipt.' });
+    content.push({ type: 'text', text: 'Photo 1: fuel bill or pump display.' });
     content.push({ type: 'image', source: { type: 'base64', media_type: receipt.mediaType, data: receipt.data } });
   } else {
-    content.push({ type: 'text', text: 'No receipt photo was provided.' });
+    content.push({ type: 'text', text: 'No fuel bill photo was provided.' });
   }
   if (odometer) {
     content.push({ type: 'text', text: `Photo ${receipt ? 2 : 1}: vehicle dashboard / odometer.` });
@@ -301,7 +304,7 @@ async function readWithAnthropic({ receipt, odometer }, env) {
   if (!call || typeof call.input !== 'object') throw new HttpError(502, 'reader-failed', 'The photo reader gave no answer. Try again.');
   // Return only known fields; the app cleans and checks them again.
   const out = {};
-  for (const k of [...FIELD_NAMES, 'receiptIsFuel', 'odometerReadable', 'fieldsNeedingReview']) out[k] = call.input[k] ?? null;
+  for (const k of [...FIELD_NAMES, 'receiptIsFuel', 'billKind', 'odometerReadable', 'fieldsNeedingReview']) out[k] = call.input[k] ?? null;
   return out;
 }
 

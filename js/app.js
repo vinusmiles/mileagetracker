@@ -26,6 +26,7 @@ const ROUTES = [
   { re: /^\/history$/, view: history.render, nav: 'history', title: 'History' },
   { re: /^\/settings$/, view: settings.render, nav: 'settings', title: 'Settings' },
   { re: /^\/maintenance$/, view: maintenance.renderHistory, nav: 'maintenance', title: 'Maintenance' },
+  { re: /^\/service\/add$/, view: maintenance.renderAddChooser, nav: 'vehicles', title: 'Add service' },
   { re: /^\/service\/scan$/, view: maintenance.renderScan, nav: 'maintenance', title: 'Scan service invoice' },
   { re: /^\/service\/new$/, view: maintenance.renderNew, nav: 'maintenance', title: 'Add service' },
   { re: /^\/service\/([^/]+)\/edit$/, view: maintenance.renderEdit, nav: 'maintenance', title: 'Edit service' },
@@ -94,7 +95,7 @@ async function render() {
   pendingFocusId = null;
 
   if (auth.isConfigured() && !auth.currentUser()) {
-    document.title = 'Sign in | MileageMate';
+    document.title = 'Sign in | GaadiKhata';
     document.getElementById('banner').hidden = true;
     await login.render(main);
     main.querySelector('.page-title')?.focus({ preventScroll: true });
@@ -105,7 +106,7 @@ async function render() {
     if (!route) {
       main.innerHTML = `<h1 class="page-title" tabindex="-1">Page not found</h1><p><a href="#/">Go to the dashboard</a></p>`;
     } else {
-      document.title = `${route.title} | MileageMate`;
+      document.title = `${route.title} | GaadiKhata`;
       await route.view(main, { params, query, navigate, refresh: render });
     }
   } catch (err) {

@@ -1,4 +1,4 @@
-# MileageMate photo reader (Cloudflare Worker)
+# GaadiKhata photo reader (Cloudflare Worker)
 
 `worker.js` is the secure backend for Smart fuel entry. It checks the user's Firebase sign-in, applies a daily scan limit, sends the photos to Claude (Anthropic API) with a secret key, and returns only the extracted fields. Photos are never stored or logged.
 

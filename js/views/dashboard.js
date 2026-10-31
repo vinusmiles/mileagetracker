@@ -16,10 +16,10 @@ export async function render(main, { query, refresh }) {
 
   if (!vehicles.length) {
     main.innerHTML = `
-      <h1 class="page-title" tabindex="-1">Welcome to MileageMate</h1>
+      <h1 class="page-title" tabindex="-1">Welcome to GaadiKhata</h1>
       ${emptyState({
         title: 'Start with your vehicle',
-        text: 'Add a bike or car, then record each fuel fill. MileageMate works out your mileage and fuel spend.',
+        text: 'Add a bike or car, then record each fuel fill. GaadiKhata works out your mileage and fuel spend.',
         actions: `<a class="btn btn-primary" href="#/vehicles/new">${icon('plus')}Add a vehicle</a>
                   <button class="btn" type="button" data-action="demo">Try with sample data</button>`,
       })}`;

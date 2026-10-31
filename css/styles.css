@@ -1,4 +1,4 @@
-/* MileageMate styles. Mobile first; sidebar layout from 900px.
+/* GaadiKhata styles. Mobile first; sidebar layout from 900px.
    Palette: asphalt ink, highway-sign green, odometer amber. */
 
 :root {
@@ -513,3 +513,9 @@ body.signed-out .page { padding-bottom: 2rem; }
   .nav { z-index: 22; }
 }
 .item-opt-wide { grid-column: 1 / -1; color: var(--ink); font-size: .9rem; }
+
+/* Example photos shown in empty photo slots */
+.photo-examples { position: relative; display: flex; gap: .5rem; justify-content: center; align-items: center; width: 100%; height: 100%; padding: .4rem; }
+.photo-examples a { height: 100%; display: block; }
+.photo-examples img { height: 100%; width: auto; max-width: 100%; object-fit: contain; border-radius: 4px; opacity: .55; filter: grayscale(.3); }
+.example-tag { position: absolute; left: .5rem; top: .5rem; padding: .1rem .5rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: .75rem; font-weight: 600; }

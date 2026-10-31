@@ -1,6 +1,6 @@
 // Smart fuel entry settings.
 //
-// readerUrl: the address of your MileageMate photo reader (Cloudflare Worker),
+// readerUrl: the address of your GaadiKhata photo reader (Cloudflare Worker),
 // e.g. 'https://mileagemate-reader.yourname.workers.dev'. While it is empty, the
 // labelled demo reader is used, which does NOT read photos.
 // No API keys ever go in this file; the key lives only in the Worker's secrets.

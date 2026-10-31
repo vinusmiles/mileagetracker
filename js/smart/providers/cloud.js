@@ -1,4 +1,4 @@
-// Real photo reader: sends the resized photos to the MileageMate Worker,
+// Real photo reader: sends the resized photos to the GaadiKhata Worker,
 // which checks the sign-in, applies a daily limit, asks the AI provider to
 // read them and returns only the extracted fields. Photos are not stored.
 
@@ -9,7 +9,7 @@ export const info = {
   id: 'cloud',
   label: 'Photo reader',
   isDemo: false,
-  privacy: 'Your photos are sent securely to the MileageMate reader, which uses an AI service to read them. Photos are not stored.',
+  privacy: 'Your photos are sent securely to the GaadiKhata reader, which uses an AI service to read them. Photos are not stored.',
 };
 
 export class ReaderError extends Error {
