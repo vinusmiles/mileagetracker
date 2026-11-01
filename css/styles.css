@@ -519,3 +519,19 @@ body.signed-out .page { padding-bottom: 2rem; }
 .photo-examples a { height: 100%; display: block; }
 .photo-examples img { height: 100%; width: auto; max-width: 100%; object-fit: contain; border-radius: 4px; opacity: .55; filter: grayscale(.3); }
 .example-tag { position: absolute; left: .5rem; top: .5rem; padding: .1rem .5rem; border-radius: 999px; background: var(--ink); color: var(--bg); font-size: .75rem; font-weight: 600; }
+
+/* Thumbnails are buttons now (open the in-app viewer) */
+button.thumb { padding: 0; cursor: zoom-in; font: inherit; }
+.photo-examples button { height: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; }
+
+/* In-app image viewer */
+body.viewer-open { overflow: hidden; }
+.viewer { position: fixed; inset: 0; z-index: 60; display: grid; grid-template-rows: auto 1fr; background: rgba(8, 10, 12, .96); color: #fff; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+.viewer-bar { display: flex; justify-content: space-between; align-items: center; padding: .5rem .75rem; }
+.viewer-count { font-weight: 600; }
+.viewer-stage { overflow: auto; display: grid; place-items: center; touch-action: pinch-zoom pan-x pan-y; }
+.viewer-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.viewer-btn { min-width: 48px; min-height: 48px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .14); color: #fff; font-size: 1.5rem; cursor: pointer; }
+.viewer-prev, .viewer-next { position: absolute; top: 50%; transform: translateY(-50%); }
+.viewer-prev { left: .5rem; }
+.viewer-next { right: .5rem; }

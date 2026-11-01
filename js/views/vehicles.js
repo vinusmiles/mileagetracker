@@ -74,7 +74,7 @@ export async function renderForm(main, { params, navigate }) {
       ${field('nickname', 'Name', `<input id="nickname" name="nickname" type="text" maxlength="${LIMITS.nicknameMax}" autocomplete="off" required value="${esc(v.nickname)}" placeholder="My bike">`)}
       ${choices('type', 'Vehicle type', typeOptions, v.type)}
       ${choices('fuelType', 'Fuel', fuelOptions, v.fuelType)}
-      ${field('initialOdometer', 'Odometer reading (km)', `<input id="initialOdometer" name="initialOdometer" type="text" inputmode="numeric" autocomplete="off" required value="${esc(v.initialOdometer)}" placeholder="12500">`, editing ? 'The reading when you added this vehicle.' : 'The reading on the vehicle today.')}
+      ${field('initialOdometer', 'Odometer reading (km, optional)', `<input id="initialOdometer" name="initialOdometer" type="text" inputmode="numeric" autocomplete="off" value="${esc(v.initialOdometer ?? '')}" placeholder="12500">`, 'Optional. Your first fuel or service entry records the odometer anyway.')}
       <details class="optional"${v.make || v.model || v.registration ? ' open' : ''}>
         <summary>Make, model and registration (optional)</summary>
         ${field('make', 'Make', `<input id="make" name="make" type="text" maxlength="${LIMITS.textMax}" autocomplete="off" value="${esc(v.make)}" placeholder="Honda">`)}

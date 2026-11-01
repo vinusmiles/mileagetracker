@@ -230,9 +230,11 @@ test('Lower odometer than previous fill gives a warning', () => {
   assert.equal(warnings[0].code, 'odometer-lower');
 });
 
-test('Vehicle needs a name, type, fuel and odometer', () => {
+test('Vehicle needs a name, type and fuel; odometer is optional', () => {
   const e = validateVehicle({ nickname: ' ', type: 'x', fuelType: 'cng', initialOdometer: null });
-  for (const f of ['nickname', 'type', 'fuelType', 'initialOdometer']) assert.ok(e[f], `${f} should fail`);
+  for (const f of ['nickname', 'type', 'fuelType']) assert.ok(e[f], `${f} should fail`);
+  assert.ok(!e.initialOdometer, 'empty odometer is allowed');
+  assert.ok(validateVehicle({ nickname: 'Car', type: 'four', fuelType: 'petrol', initialOdometer: -5 }).initialOdometer, 'negative odometer fails');
   const ok = validateVehicle({ nickname: 'My bike', type: 'two', fuelType: 'petrol', initialOdometer: 0 });
   assert.equal(Object.keys(ok).length, 0);
 });

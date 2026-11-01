@@ -17,8 +17,7 @@ export function validateVehicle(v) {
   const fuel = FUEL_TYPES[v.fuelType];
   if (!fuel) errors.fuelType = 'Choose a fuel type.';
   else if (!fuel.enabled) errors.fuelType = `${fuel.label} tracking is not available yet.`;
-  if (v.initialOdometer === null || v.initialOdometer === undefined) errors.initialOdometer = 'Enter the current odometer reading.';
-  else if (!Number.isFinite(v.initialOdometer) || v.initialOdometer < 0) errors.initialOdometer = 'Enter a reading of 0 km or more.';
+  if (v.initialOdometer === null || v.initialOdometer === undefined) { /* optional */ } else if (!Number.isFinite(v.initialOdometer) || v.initialOdometer < 0) errors.initialOdometer = 'Enter a reading of 0 km or more.';
   else if (v.initialOdometer > LIMITS.odometerMax) errors.initialOdometer = 'That reading is too large.';
   for (const f of ['make', 'model', 'registration']) {
     if ((v[f] || '').length > LIMITS.textMax) errors[f] = `Keep this under ${LIMITS.textMax} characters.`;

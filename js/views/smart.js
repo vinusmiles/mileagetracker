@@ -79,7 +79,7 @@ function slotHTML(kind) {
     : [['odometer.webp', 'Example: dashboard with ODO reading']];
   const preview = photo
     ? `<img src="${photo.url}" alt="${title} photo preview">`
-    : `<div class="photo-examples">${examples.map(([f, alt]) => `<a href="assets/samples/${f}" target="_blank" rel="noopener"><img src="assets/samples/${f}" alt="${alt}" loading="lazy"></a>`).join('')}<span class="example-tag">Example${examples.length > 1 ? 's' : ''}</span></div>`;
+    : `<div class="photo-examples" data-gallery>${examples.map(([f, alt]) => `<button type="button" data-view aria-label="${alt}, view larger"><img src="assets/samples/${f}" alt="${alt}" loading="lazy"></button>`).join('')}<span class="example-tag">Example${examples.length > 1 ? 's' : ''}</span></div>`;
   return `
     <section class="photo-slot${photo ? ' has-photo' : ''}" data-slot="${kind}" aria-labelledby="slot-${kind}">
       <div class="photo-text">
@@ -256,14 +256,14 @@ async function renderReview(main, vehicles, ctx) {
   };
   const textIn = (name, max = LIMITS.textMax, mode = 'text') => `<input id="${name}" name="${name}" type="text" inputmode="${mode}" maxlength="${max}" autocomplete="off" value="${val(v[name])}">`;
   const fuelOpts = [['', 'Not shown'], ...Object.entries(FUEL_TYPES).map(([k, t]) => [k, t.label])];
-  const thumbs = ['receipt', 'odometer'].filter((k) => session[k]).map((k) => `<a href="${session[k].url}" target="_blank" rel="noopener" class="thumb"><img src="${session[k].url}" alt="${k === 'receipt' ? 'Fuel bill' : 'Odometer'} photo, opens full size"></a>`).join('');
+  const thumbs = ['receipt', 'odometer'].filter((k) => session[k]).map((k) => `<button type="button" class="thumb" data-view aria-label="${k === 'receipt' ? 'Fuel bill' : 'Odometer'} photo, view larger"><img src="${session[k].url}" alt="${k === 'receipt' ? 'Fuel bill' : 'Odometer'} photo"></button>`).join('');
 
   main.innerHTML = `
     <h1 class="page-title" tabindex="-1">Check the details</h1>
     ${demo ? `<div class="notice notice-demo" role="note">${icon('warn')}<div><p><strong>Demo values.</strong> These were made up by the demo reader, not read from your photos. Replace them with the real values before saving, or cancel.</p></div></div>` : ''}
     <div class="review-top">
       <p>For <strong>${esc(vehicle.nickname)}</strong><br><span class="muted">${vehicleSubtitle(vehicle)}</span></p>
-      <div class="thumbs">${thumbs}</div>
+      <div class="thumbs" data-gallery>${thumbs}</div>
     </div>
     <p class="hint">Check the values against your photos and change anything that is wrong.</p>
     <section class="checks" data-checks aria-live="polite"></section>

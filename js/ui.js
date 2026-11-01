@@ -186,3 +186,72 @@ export function choices(name, legend, options, selected) {
       <p class="field-error" id="${name}-error" hidden></p>
     </fieldset>`;
 }
+
+// ---- Image viewer ---------------------------------------------------------------
+// Opens photos inside the app instead of a new tab. Large photos kept as data URLs
+// crash or are blocked when opened as a page of their own, especially on phones.
+// Markup: a container with data-gallery, holding <button data-view> elements that
+// each contain the <img> to show.
+
+let viewer = null;
+
+function closeViewer() {
+  if (!viewer) return;
+  viewer.el.remove();
+  document.body.classList.remove('viewer-open');
+  viewer.returnFocus?.focus();
+  viewer = null;
+}
+
+function showViewerImage(i) {
+  const n = viewer.srcs.length;
+  viewer.index = (i + n) % n;
+  const img = viewer.el.querySelector('.viewer-img');
+  img.src = viewer.srcs[viewer.index];
+  img.alt = viewer.alts[viewer.index] || '';
+  viewer.el.querySelector('.viewer-count').textContent = n > 1 ? `${viewer.index + 1} of ${n}` : '';
+}
+
+export function openImageViewer(srcs, alts = [], start = 0, returnFocus = null) {
+  closeViewer();
+  const el = document.createElement('div');
+  el.className = 'viewer';
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-label', 'Photo viewer');
+  el.innerHTML = `
+    <div class="viewer-bar">
+      <span class="viewer-count"></span>
+      <button type="button" class="viewer-btn" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="viewer-stage"><img class="viewer-img" alt=""></div>
+    ${srcs.length > 1 ? '<button type="button" class="viewer-btn viewer-prev" data-prev aria-label="Previous">‹</button><button type="button" class="viewer-btn viewer-next" data-next aria-label="Next">›</button>' : ''}`;
+  document.body.append(el);
+  document.body.classList.add('viewer-open');
+  viewer = { el, srcs, alts, index: 0, returnFocus };
+  showViewerImage(start);
+  el.addEventListener('click', (ev) => {
+    if (ev.target.closest('[data-close]') || ev.target === el || ev.target.classList.contains('viewer-stage')) closeViewer();
+    else if (ev.target.closest('[data-prev]')) showViewerImage(viewer.index - 1);
+    else if (ev.target.closest('[data-next]')) showViewerImage(viewer.index + 1);
+  });
+  el.querySelector('[data-close]').focus();
+}
+
+document.addEventListener('keydown', (ev) => {
+  if (!viewer) return;
+  if (ev.key === 'Escape') closeViewer();
+  if (ev.key === 'ArrowLeft') showViewerImage(viewer.index - 1);
+  if (ev.key === 'ArrowRight') showViewerImage(viewer.index + 1);
+});
+window.addEventListener('hashchange', closeViewer);
+
+document.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('[data-view]');
+  if (!btn) return;
+  ev.preventDefault();
+  const group = btn.closest('[data-gallery]') || btn.parentElement;
+  const buttons = [...group.querySelectorAll('[data-view]')];
+  const imgs = buttons.map((b) => b.querySelector('img'));
+  openImageViewer(imgs.map((i) => i.currentSrc || i.src), imgs.map((i) => i.alt), buttons.indexOf(btn), btn);
+});

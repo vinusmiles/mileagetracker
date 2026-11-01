@@ -52,7 +52,7 @@ export async function render(main, { refresh }) {
 
     <section class="block">
       <h2>About</h2>
-      <p>GaadiKhata, version 0.8. <a href="tests/">Run the calculation tests</a>.</p>
+      <p>GaadiKhata, version 0.8.1. <a href="tests/">Run the calculation tests</a>.</p>
     </section>`;
 
   main.querySelector('[data-action="sign-out"]')?.addEventListener('click', async (ev) => {

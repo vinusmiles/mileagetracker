@@ -146,7 +146,7 @@ export async function renderDetail(main, { params, navigate }) {
     ${optional.length ? `<section class="block"><h2>Optional services</h2>${itemsTable(optional)}</section>` : ''}
     ${summaryRows ? `<section class="block"><h2>Financial breakdown</h2><dl class="sum-list">${summaryRows}</dl></section>` : ''}
     ${r.notes ? `<section class="block"><h2>Notes</h2><p>${esc(r.notes)}</p></section>` : ''}
-    ${r.pageCount ? `<section class="block"><h2>Invoice pages</h2><div class="thumbs page-thumbs" data-pages><p class="muted">Loading ${r.pageCount} ${r.pageCount === 1 ? 'page' : 'pages'}…</p></div></section>` : ''}
+    ${r.pageCount ? `<section class="block"><h2>Invoice pages</h2><div class="thumbs page-thumbs" data-pages data-gallery><p class="muted">Loading ${r.pageCount} ${r.pageCount === 1 ? 'page' : 'pages'}…</p></div></section>` : ''}
     <div class="actions">
       <a class="btn btn-primary" href="#/service/${enc(r.id)}/edit">Edit service</a>
     </div>
@@ -158,7 +158,7 @@ export async function renderDetail(main, { params, navigate }) {
       const box = main.querySelector('[data-pages]');
       if (!box) return;
       box.innerHTML = pages.length
-        ? pages.map((url, i) => `<a class="thumb thumb-page" href="${url}" target="_blank" rel="noopener" aria-label="Open page ${i + 1}"><img src="${url}" alt="Invoice page ${i + 1}"><span>${i + 1}</span></a>`).join('')
+        ? pages.map((url, i) => `<button type="button" class="thumb thumb-page" data-view aria-label="Open page ${i + 1}"><img src="${url}" alt="Invoice page ${i + 1}"><span>${i + 1}</span></button>`).join('')
         : '<p class="muted">The pages could not be loaded.</p>';
     }).catch(() => { const box = main.querySelector('[data-pages]'); if (box) box.innerHTML = '<p class="muted">The pages could not be loaded. Check your connection.</p>'; });
   }
@@ -397,7 +397,7 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
       <button type="button" class="btn btn-sm" data-add-item="labour">${icon('plus')}Add labour or service</button>`;
   };
 
-  const thumbs = pages?.length ? `<div class="thumbs page-thumbs">${pages.map((p, i) => `<a class="thumb thumb-page" href="${p.url}" target="_blank" rel="noopener"><img src="${p.url}" alt="Invoice page ${i + 1}, opens full size"><span>${i + 1}</span></a>`).join('')}</div>` : '';
+  const thumbs = pages?.length ? `<div class="thumbs page-thumbs" data-gallery>${pages.map((p, i) => `<button type="button" class="thumb thumb-page" data-view aria-label="Open page ${i + 1}"><img src="${p.url}" alt="Invoice page ${i + 1}"><span>${i + 1}</span></button>`).join('')}</div>` : '';
   const title = { manual: 'Add service', edit: 'Edit service', review: 'Check the invoice details' }[mode];
 
   main.innerHTML = `

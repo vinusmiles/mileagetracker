@@ -118,7 +118,7 @@ export async function saveVehicle(data) {
     model: (data.model || '').trim(),
     registration: (data.registration || '').trim().toUpperCase(),
     fuelType: data.fuelType,
-    initialOdometer: data.initialOdometer,
+    initialOdometer: Number.isFinite(data.initialOdometer) ? data.initialOdometer : null,
   };
   let saved;
   if (data.id) {

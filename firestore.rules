@@ -30,14 +30,14 @@ service cloud.firestore {
     }
 
     function validVehicle(d, vehicleId) {
-      return d.keys().hasAll(['id', 'nickname', 'type', 'fuelType', 'initialOdometer', 'createdAt', 'updatedAt'])
+      return d.keys().hasAll(['id', 'nickname', 'type', 'fuelType', 'createdAt', 'updatedAt'])
         && d.keys().hasOnly(['id', 'nickname', 'type', 'make', 'model', 'registration', 'fuelType',
                              'initialOdometer', 'demo', 'createdAt', 'updatedAt'])
         && d.id == vehicleId
         && d.nickname is string && d.nickname.size() > 0 && d.nickname.size() <= 40
         && d.type in ['two', 'four']
         && d.fuelType in ['petrol', 'diesel', 'cng', 'electric']
-        && d.initialOdometer is number && d.initialOdometer >= 0 && d.initialOdometer <= 9999999
+        && (!('initialOdometer' in d) || d.initialOdometer == null || (d.initialOdometer is number && d.initialOdometer >= 0 && d.initialOdometer <= 9999999))
         && optionalString(d, 'make', 120)
         && optionalString(d, 'model', 120)
         && optionalString(d, 'registration', 120)

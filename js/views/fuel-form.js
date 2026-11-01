@@ -117,7 +117,7 @@ export async function render(main, { params, query, navigate }) {
     const last = others[others.length - 1];
     form.querySelector('[data-last-odo]').textContent = last
       ? `Last: ${fmt.km(last.odometer)} on ${fmt.date(last.date)}`
-      : `Start: ${fmt.km(currentVehicle.initialOdometer)}`;
+      : (Number.isFinite(currentVehicle.initialOdometer) ? `Start: ${fmt.km(currentVehicle.initialOdometer)}` : 'First fill for this vehicle');
     resetWarnings();
   }
   form.querySelectorAll('[name="vehicleId"]').forEach((el) => el.addEventListener('change', onVehicleChange));
