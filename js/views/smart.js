@@ -5,7 +5,7 @@
 
 import * as store from '../store.js';
 import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, mileageHint } from '../ui.js';
-import { FUEL_TYPES, LIMITS } from '../core/model.js';
+import { FUEL_TYPES, LIMITS, fuelUnitName, perUnitWord } from '../core/model.js';
 import { validateEntry } from '../core/validate.js';
 import { toNum, sortEntries, analyseVehicle } from '../core/calc.js';
 import { todayStr } from '../core/dates.js';
@@ -22,7 +22,7 @@ const FORM_NAME = {
   location: 'location', receiptNumber: 'receiptNumber', odometerKm: 'odometer', dashboardRangeKm: 'dashboardRangeKm',
 };
 const LABELS = {
-  date: 'Date', time: 'Time', fuelType: 'Fuel type', quantity: 'Fuel (litres)', pricePerUnit: 'Price per litre (₹)',
+  date: 'Date', time: 'Time', fuelType: 'Fuel type', quantity: 'Fuel quantity', pricePerUnit: 'Price per unit (₹)',
   totalAmount: 'Total paid (₹)', fuelCompany: 'Fuel company', station: 'Fuel station', location: 'Location',
   receiptNumber: 'Receipt number', odometer: 'Odometer (km)', dashboardRangeKm: 'Range shown on dashboard (km)', fullTank: 'Full tank',
 };
@@ -69,13 +69,17 @@ function demoNotice() {
     : '';
 }
 
+let slotFuel = 'petrol'; // fuel type of the selected vehicle, for the example photos
+
 function slotHTML(kind) {
   const photo = session[kind];
   const isReceipt = kind === 'receipt';
   const title = isReceipt ? 'Fuel bill or pump reading' : 'Odometer';
-  const help = isReceipt ? 'The printed bill, or a photo of the pump display showing amount, litres and rate.' : 'The dashboard with the ODO reading clearly visible.';
+  const help = isReceipt ? 'The printed bill, or a photo of the pump display showing amount, quantity and rate.' : 'The dashboard with the ODO reading clearly visible.';
   const examples = isReceipt
-    ? [['fuel-bill.webp', 'Example: printed fuel bill'], ['pump-reading.webp', 'Example: pump display']]
+    ? (slotFuel === 'cng'
+      ? [['cng-reading.webp', 'Example: CNG dispenser display (total, kg, rate per kg)']]
+      : [['fuel-bill.webp', 'Example: printed fuel bill'], ['pump-reading.webp', 'Example: pump display']])
     : [['odometer.webp', 'Example: dashboard with ODO reading']];
   const preview = photo
     ? `<img src="${photo.url}" alt="${title} photo preview">`
@@ -100,6 +104,7 @@ function slotHTML(kind) {
 }
 
 function renderCapture(main, vehicles, ctx) {
+  slotFuel = vehicles.find((v) => v.id === session.vehicleId)?.fuelType || 'petrol';
   const vehicleOpts = vehicles.map((v) => ({ value: v.id, label: v.nickname, note: [typeLabel(v), v.registration].filter(Boolean).join(', ') }));
   main.innerHTML = `
     <a class="back" href="#/fuel/new?manual=1&v=${encodeURIComponent(session.vehicleId)}">${icon('back')}Manual entry</a>
@@ -123,7 +128,11 @@ function renderCapture(main, vehicles, ctx) {
   const syncRead = () => { readBtn.disabled = !(session.receipt || session.odometer); };
   syncRead();
 
-  form.querySelectorAll('[name="vehicleId"]').forEach((el) => el.addEventListener('change', () => { session.vehicleId = el.value; }));
+  form.querySelectorAll('[name="vehicleId"]').forEach((el) => el.addEventListener('change', () => {
+    session.vehicleId = el.value;
+    slotFuel = vehicles.find((v) => v.id === el.value)?.fuelType || 'petrol';
+    if (!session.receipt) form.querySelector('[data-slot="receipt"]').outerHTML = slotHTML('receipt');
+  }));
 
   form.addEventListener('change', async (ev) => {
     const kind = ev.target.dataset.pick;
@@ -234,6 +243,8 @@ async function renderReview(main, vehicles, ctx) {
   const r = session.result;
   const v = session.values;
   const demo = providerInfo().isDemo;
+  // Litres for petrol/diesel, kg for CNG.
+  const labels = { ...LABELS, quantity: `Fuel (${fuelUnitName(vehicle.fuelType)})`, pricePerUnit: `Price per ${perUnitWord(vehicle.fuelType)} (₹)` };
   const val = (x) => (x === null || x === undefined ? '' : esc(x));
 
   const notFound = (name) => {
@@ -250,7 +261,7 @@ async function renderReview(main, vehicles, ctx) {
     return parts.join(' ');
   };
   const f = (name, input, base) => {
-    let html = field(name, LABELS[name], input, hintFor(name, base));
+    let html = field(name, labels[name], input, hintFor(name, base));
     if (session.needsReview.has(name) && !session.confirmed.has(name)) html = html.replace(`class="field" data-field="${name}"`, `class="field needs-review" data-field="${name}"`);
     return html;
   };

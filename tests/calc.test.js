@@ -231,10 +231,20 @@ test('Lower odometer than previous fill gives a warning', () => {
 });
 
 test('Vehicle needs a name, type and fuel; odometer is optional', () => {
-  const e = validateVehicle({ nickname: ' ', type: 'x', fuelType: 'cng', initialOdometer: null });
+  const e = validateVehicle({ nickname: ' ', type: 'x', fuelType: 'electric', initialOdometer: null });
   for (const f of ['nickname', 'type', 'fuelType']) assert.ok(e[f], `${f} should fail`);
   assert.ok(!e.initialOdometer, 'empty odometer is allowed');
   assert.ok(validateVehicle({ nickname: 'Car', type: 'four', fuelType: 'petrol', initialOdometer: -5 }).initialOdometer, 'negative odometer fails');
   const ok = validateVehicle({ nickname: 'My bike', type: 'two', fuelType: 'petrol', initialOdometer: 0 });
   assert.equal(Object.keys(ok).length, 0);
+});
+
+test('CNG: vehicles are allowed and mileage is km per kg', () => {
+  assert.equal(Object.keys(validateVehicle({ nickname: 'CNG car', type: 'four', fuelType: 'cng', initialOdometer: null })).length, 0);
+  const { summary } = analyseVehicle([
+    fill({ vehicleId: 'cng', date: '2026-10-20', odometer: 30000, quantity: 7.0, totalAmount: 805, fullTank: true }),
+    fill({ vehicleId: 'cng', date: '2026-11-02', odometer: 30185, quantity: 7.42, pricePerUnit: 115, totalAmount: 853.3, fullTank: true }),
+  ]);
+  assert.close(summary.latestMileage, 24.93, 0.01, '185 km / 7.42 kg;');
+  assert.close(summary.costPerKm, 4.61, 0.01);
 });

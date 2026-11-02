@@ -17,6 +17,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | Maintenance Stage 1: service history, manual entry, multi-page invoice scan, review/edit, pages kept in Firestore | ✅ Live (v0.6) |
 | Maintenance Stage 2: real invoice reading (Worker 0.5.0, route `/extract-invoice`) | ✅ Built (v0.7), to verify on the Nexon invoice |
 | v0.8: GaadiKhata name, Add service on vehicles, pump-display photos, example photos, no "Looks right" prompts, 22-Oct-2026 dates | ✅ Built |
+| v0.9: CNG vehicles (kg, ₹/kg, km/kg), CNG dispenser photos, optional vehicle odometer, in-app photo viewer | ✅ Built |
 | Maintenance Stage 3–4: analytics, reminders, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |
@@ -29,7 +30,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | Website | https://vinusmiles.github.io/mileagetracker/ (GitHub repo `vinusmiles/mileagetracker`, files at the repo root) |
 | Firebase project | `mileagemate-1311` (Spark plan, free): Authentication (Google) and Firestore (`asia-south1`, Mumbai) |
 | Authorised domain | `vinusmiles.github.io` |
-| Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.5.1) |
+| Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.5.2) |
 | Reader settings | Secret `ANTHROPIC_API_KEY`; text `FIREBASE_PROJECT_ID`, `ALLOWED_ORIGINS`, `DAILY_LIMIT` (30); KV binding `SCANS` → namespace `mileagemate-scans` |
 | AI provider | Claude API (Claude Console, individual account, prepaid credit), key `mileagemate-reader-2`, no expiry, model `claude-haiku-5-5` |
 
@@ -144,6 +145,7 @@ Bottom bar → **Maintenance** (Settings moved to the ⚙️ in the top bar).
 ## Smart fuel entry: how photo reading works
 
 1. Add fuel → **Smart fuel entry** → pick the vehicle → add the **fuel bill or pump reading** photo, the odometer photo, or both → **Read details**. Example photos are shown in the empty slots (`assets/samples/`, WebP so they pass the publish filter).
+   **CNG vehicles** use kg, ₹/kg and km/kg throughout; CNG dispenser photos (TOTAL ₹, QTY kg, RATE ₹/kg) are read the same way, and the empty slot shows a CNG example for CNG vehicles.
    A **pump display** photo works too: the reader takes Amount, Volume and the Rate that matches them (dispensers often show two rates), and fills in today's date because the display shows none.
 2. The Worker reads the photos with Claude and returns: date, litres, price per litre, total, fuel type, fuel company, station, odometer (ODO only) and dashboard range.
 3. The review screen shows everything editable; you simply change anything that is wrong (no confirmation prompts). Checks flag litres × rate ≠ total, a fuel type that doesn't match the vehicle, an odometer lower than before or equal to the range, and possible duplicates.
@@ -165,7 +167,7 @@ Reader instructions handle known traps: Atot/Vtot running totals, "Printed on" t
 | "today's 30 photo scans" | Daily limit reached | Wait until tomorrow (UTC), or raise `DAILY_LIMIT` |
 | "The photo reader is not set up yet" | Secret, project id or `SCANS` binding missing | Re-check the Worker settings |
 
-Opening the Worker address in a browser should show `{"error":"origin-not-allowed",…,"allowedCount":1,"version":"0.5.1"}`: that confirms the version and that the allowed-website setting is loaded.
+Opening the Worker address in a browser should show `{"error":"origin-not-allowed",…,"allowedCount":1,"version":"0.5.2"}`: that confirms the version and that the allowed-website setting is loaded.
 
 ## Phase 2 setup: Firebase (done; kept for reference)
 

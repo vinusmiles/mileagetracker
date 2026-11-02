@@ -22,7 +22,7 @@ export function findPossibleDuplicates(c, entries) {
     }
     const sameMoney = near(c.quantity, e.quantity, 0.02) && near(c.totalAmount, e.totalAmount, 1);
     if (c.date === e.date && sameMoney) {
-      if (c.time && e.time && c.time === e.time) { reasons.push('same date, time, litres and amount'); strong = true; } else reasons.push('same date, litres and amount');
+      if (c.time && e.time && c.time === e.time) { reasons.push('same date, time, quantity and amount'); strong = true; } else reasons.push('same date, quantity and amount');
     }
     if (typeof c.odometer === 'number' && c.odometer === e.odometer) reasons.push('same odometer reading');
     if (reasons.length) out.push({ entry: e, reasons, strong });

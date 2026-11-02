@@ -30,7 +30,7 @@ export function reviewChecks(v, { vehicle, entries = [], today }) {
       out.push({ level: 'ok', code: 'amount-match', message: `Fuel × rate matches the total (₹${rs(v.totalAmount)}).`, fields: [] });
     }
   }
-  if (!isPos(v.quantity)) out.push({ level: 'info', code: 'quantity-missing', message: 'Enter the litres filled.', fields: ['quantity'] });
+  if (!isPos(v.quantity)) out.push({ level: 'info', code: 'quantity-missing', message: 'Enter the quantity filled.', fields: ['quantity'] });
   if (!isPos(v.totalAmount)) out.push({ level: 'info', code: 'amount-missing', message: 'Enter the total amount paid.', fields: ['totalAmount'] });
   if (!v.date) out.push({ level: 'info', code: 'date-missing', message: 'Enter the date of the fill.', fields: ['date'] });
   if (!isPos(v.odometer)) out.push({ level: 'info', code: 'odometer-missing', message: 'Enter the odometer reading. Mileage needs it.', fields: ['odometer'] });

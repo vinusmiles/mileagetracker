@@ -20,7 +20,7 @@
 // The AI provider sits behind one function (readWithAnthropic). To switch
 // provider later, add another function with the same input and output.
 
-const WORKER_VERSION = '0.5.1';
+const WORKER_VERSION = '0.5.2';
 const DEFAULT_MODEL = 'claude-haiku-5-5';
 const MAX_BODY_BYTES = 3_000_000;
 const MAX_IMAGE_B64 = 1_400_000; // about 1 MB per photo; the app sends ~150 KB
@@ -225,14 +225,15 @@ Golden rule: never guess. If a value is not clearly visible, use null. If you ca
 
 Fuel bill photo: either a printed fuel bill / receipt, or a photo of the pump's display ("bunk reading").
 - billKind: "printed-bill" or "pump-display".
+- CNG dispensers show TOTAL (₹), QTY (kg) and RATE (₹/kg), sometimes labelled ARM A / ARM B. For CNG, return the kilograms in quantityLitres (the field holds the fill quantity in the fuel's own unit), the ₹/kg rate in pricePerLitre, and fuelType "CNG". Ignore small keypad or status screens (for example "PT2 ARM A FAIL"); they are not readings.
 - Pump display: it shows Amount (₹), Volume (L) and one or more Rate (₹/L) windows. A dispenser serving two fuel grades shows two rates; pricePerLitre is the one where Volume × Rate ≈ Amount. A pump display has no date, time, station or receipt number: leave those null. receiptIsFuel is true.
-- quantityLitres: the volume dispensed (often "Volume(L)" or "Qty"). Strip leading zeros: "00020.00" is 20.
+- quantityLitres: the quantity dispensed: litres for petrol/diesel ("Volume(L)", "Qty"), kilograms for CNG ("QTY (kg)"). Strip leading zeros: "00020.00" is 20.
 - pricePerLitre: the rate ("Rate(Rs/L)"). totalAmount: the amount paid for this sale ("Amount(Rs)", "Sale").
 - Ignore "Atot", "Vtot", "Totalizer" or other running totals: they are the pump's lifetime counters, not this sale.
 - transactionDate: the sale date printed on the receipt, as YYYY-MM-DD. Indian receipts use day/month/year: "18/10/26" is 2026-10-18.
 - transactionTime: the sale time (HH:MM, 24-hour). Not a "Printed on" time if a separate sale time exists.
 - fuelCompany: the oil company brand (e.g. Bharat Petroleum, Indian Oil, HP, Shell, Nayara). fuelStation: the outlet name.
-- fuelType: Petrol, Diesel, CNG or null.
+- fuelType: Petrol, Diesel, CNG or null. Units in kg mean CNG.
 - receiptNumber: copy exactly as printed, letters included.
 - receiptIsFuel: false if the image is not a fuel-sale receipt.
 

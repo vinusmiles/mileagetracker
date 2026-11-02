@@ -3,7 +3,7 @@
 
 import * as store from '../store.js';
 import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog } from '../ui.js';
-import { fuelUnit, LIMITS } from '../core/model.js';
+import { fuelUnit, LIMITS, perUnitWord } from '../core/model.js';
 import { validateEntry } from '../core/validate.js';
 import { toNum, deriveAmounts, sortEntries } from '../core/calc.js';
 import { todayStr } from '../core/dates.js';
@@ -112,7 +112,7 @@ export async function render(main, { params, query, navigate }) {
     vehicleEntries = await store.listEntries(currentVehicle.id);
     const unit = fuelUnit(currentVehicle.fuelType);
     form.querySelectorAll('[data-unit]').forEach((s) => { s.textContent = unit; });
-    form.querySelectorAll('[data-unit-name]').forEach((s) => { s.textContent = unit === 'L' ? 'litre' : unit; });
+    form.querySelectorAll('[data-unit-name]').forEach((s) => { s.textContent = perUnitWord(currentVehicle.fuelType); });
     const others = sortEntries(vehicleEntries.filter((x) => x.id !== editing?.id));
     const last = others[others.length - 1];
     form.querySelector('[data-last-odo]').textContent = last
