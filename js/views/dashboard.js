@@ -5,14 +5,16 @@ import { esc, fmt, icon, odometer, mileageHint, emptyState, toast } from '../ui.
 import { todayStr, monthKey, monthRange } from '../core/dates.js';
 import { inRange, totals } from '../core/calc.js';
 import { fuelUnit } from '../core/model.js';
-import { analyseAll, monthlySpendChart, entryRow, compactRow, vehicleSubtitle, sampleTag, calcLegend } from './shared.js';
+import { analyseAll, monthlySpendChart, entryRow, compactRow, vehicleSubtitle, sampleTag, calcLegend, remindersHTML, dueLine } from './shared.js';
+import { vehicleReminders } from '../core/reminders.js';
 
 const newestFirst = (a, b) => b.entry.date.localeCompare(a.entry.date)
   || (b.entry.odometer - a.entry.odometer)
   || String(b.entry.createdAt).localeCompare(String(a.entry.createdAt));
 
 export async function render(main, { query, refresh }) {
-  const [vehicles, entries] = await Promise.all([store.listVehicles(), store.listEntries()]);
+  const [vehicles, entries, services, recommendations] = await Promise.all([store.listVehicles(), store.listEntries(), store.listServices(), store.listRecommendations()]);
+  const reminders = new Map(vehicles.map((v) => [v.id, vehicleReminders(v, { services: services.filter((s) => s.vehicleId === v.id), entries: entries.filter((e) => e.vehicleId === v.id), recommendations: recommendations.filter((r) => r.vehicleId === v.id), today: todayStr() })]));
 
   if (!vehicles.length) {
     main.innerHTML = `
@@ -33,8 +35,8 @@ export async function render(main, { query, refresh }) {
 
   const analyses = analyseAll(vehicles, entries);
   const selected = vehicles.find((v) => v.id === query.get('v'));
-  if (selected) return renderVehicle(main, selected, analyses.get(selected.id), entries.filter((e) => e.vehicleId === selected.id));
-  return renderOverview(main, vehicles, entries, analyses);
+  if (selected) return renderVehicle(main, selected, analyses.get(selected.id), entries.filter((e) => e.vehicleId === selected.id), reminders.get(selected.id));
+  return renderOverview(main, vehicles, entries, analyses, reminders);
 }
 
 function monthStats(entries) {
@@ -43,7 +45,7 @@ function monthStats(entries) {
   return { today, month: totals(inRange(entries, from, to)) };
 }
 
-function renderOverview(main, vehicles, entries, analyses) {
+function renderOverview(main, vehicles, entries, analyses, reminders) {
   const { today, month } = monthStats(entries);
   const units = new Set(vehicles.map((v) => fuelUnit(v.fuelType)));
   const unit = units.size === 1 ? [...units][0] : '';
@@ -53,13 +55,9 @@ function renderOverview(main, vehicles, entries, analyses) {
   const [y, m] = today.split('-').map(Number);
   const prevKey = `${m === 1 ? y - 1 : y}-${String(m === 1 ? 12 : m - 1).padStart(2, '0')}`;
   const prev = totals(inRange(entries, monthRange(prevKey).from, monthRange(prevKey).to));
-  let delta = '';
-  if (prev.amount > 0 && month.amount > 0) {
-    const diff = month.amount - prev.amount;
-    delta = `<span class="delta">${diff >= 0 ? '▲' : '▼'} ${fmt.money(Math.abs(diff))} vs ${fmt.month(prevKey)}</span>`;
-  } else if (prev.amount > 0) {
-    delta = `<span class="delta">${fmt.month(prevKey)}: ${fmt.money(prev.amount)}</span>`;
-  }
+  // Last month's full total as a plain reference (no up/down arrow: this month is
+  // still running, so comparing it with a full month would mislead).
+  const delta = prev.amount > 0 ? `<span class="delta">${fmt.month(prevKey)}: ${fmt.money(prev.amount)}</span>` : '';
   const sub = month.count
     ? `${month.count} ${month.count === 1 ? 'fill' : 'fills'}${unit ? ` · ${fmt.qty(month.quantity, unit)}` : ''}`
     : 'No fills yet this month';
@@ -93,8 +91,11 @@ function renderOverview(main, vehicles, entries, analyses) {
       <span class="big">${fmt.money(month.amount)}</span>
       <span class="sub">Fuel spend · ${sub}</span>
       ${delta}
+      <span class="more" aria-hidden="true">Trend ›</span>
+      <button type="button" class="band-link" data-scroll="spend-chart" aria-label="See monthly fuel spend chart"></button>
     </section>
 
+    ${alertsHTML(vehicles, reminders)}
     <section class="block">
       <div class="section-head"><h2>My vehicles</h2><a href="#/vehicles/new">${icon('plus')} Add</a></div>
       <ul class="vtiles">${tiles}</ul>
@@ -105,13 +106,19 @@ function renderOverview(main, vehicles, entries, analyses) {
       ${recent ? `<ul class="rows">${recent}</ul>` : `<p class="muted">No fills yet. Tap <strong>Add fuel</strong> below to add your first.</p>`}
     </section>
 
-    <section class="block">
+    <section class="block" id="spend-chart" tabindex="-1">
       <div class="section-head"><h2>Monthly fuel spend</h2></div>
       ${monthlySpendChart(entries, today)}
     </section>`;
+
+  main.querySelector('[data-scroll]').addEventListener('click', () => {
+    const chart = main.querySelector('#spend-chart');
+    chart.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    chart.focus({ preventScroll: true });
+  });
 }
 
-function renderVehicle(main, v, analysis, entries) {
+function renderVehicle(main, v, analysis, entries, rem) {
   const { summary: s, rows } = analysis;
   const { today, month } = monthStats(entries);
   const u = fuelUnit(v.fuelType);
@@ -148,6 +155,11 @@ function renderVehicle(main, v, analysis, entries) {
     </div>
 
     <section class="block">
+      <div class="section-head"><h2>Upcoming service</h2><a href="#/maintenance?v=${encodeURIComponent(v.id)}">Service history</a></div>
+      ${remindersHTML(v, rem)}
+    </section>
+
+    <section class="block">
       <h2>Fuel spend by month</h2>
       ${monthlySpendChart(entries, today)}
     </section>
@@ -156,4 +168,15 @@ function renderVehicle(main, v, analysis, entries) {
       <div class="section-head"><h2>Recent fills</h2><a href="#/history?v=${encodeURIComponent(v.id)}">See all</a></div>
       ${recent ? `<ul class="rows">${recent}</ul>` : `<p class="muted">No fills yet. Tap <strong>Add fuel</strong> below to add the first.</p>`}
     </section>`;
+}
+
+/** One alert per vehicle, only when its main reminder is due soon or overdue (no duplicates). */
+function alertsHTML(vehicles, reminders) {
+  const items = vehicles.map((v) => ({ v, p: reminders.get(v.id)?.primary }))
+    .filter(({ p }) => p && (p.status === 'overdue' || p.status === 'due-soon'))
+    .map(({ v, p }) => `
+      <li><a class="${p.status === 'overdue' ? 'al-overdue' : ''}" href="#/?v=${encodeURIComponent(v.id)}">${icon('wrench')}
+        <span><strong>${esc(v.nickname)}: service ${p.status === 'overdue' ? 'overdue' : 'due soon'}</strong>
+        <small>${esc(p.source === 'centre' ? 'Service centre: ' : 'Suggested: ')}${esc(dueLine(p))}</small></span></a></li>`);
+  return items.length ? `<ul class="alerts" aria-label="Service reminders">${items.join('')}</ul>` : '';
 }

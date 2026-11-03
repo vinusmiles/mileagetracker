@@ -1,7 +1,7 @@
 // Sign-in screen: Google, and (when enabled) mobile number with SMS OTP.
 
 import * as auth from '../auth.js';
-import { esc } from '../ui.js';
+import { esc, icon } from '../ui.js';
 
 const RESEND_SECONDS = 30;
 let timer = null;
@@ -52,7 +52,7 @@ export async function render(main) {
         <p class="hint">Firebase runs a hidden security check to block automated sign-ups.</p>` : ''}
 
       <p class="hint login-note">GaadiKhata never sees your Google password and never stores SMS codes. Firebase handles sign-in.</p>
-      <p class="hint login-note">Need help? <a href="https://www.instagram.com/gaadikhata/" target="_blank" rel="noopener">Instagram @gaadikhata</a></p>
+      <p class="login-note"><a class="btn btn-sm btn-insta" href="https://www.instagram.com/gaadikhata/" target="_blank" rel="noopener">${icon('instagram')}Need help? @gaadikhata</a></p>
       <p class="hint login-note">© 2026 GaadiKhata. All rights reserved.</p>
     </div>`;
 

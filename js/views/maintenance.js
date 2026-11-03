@@ -3,14 +3,15 @@
 // in fuel mileage calculations; their odometer readings only join the timeline.
 
 import * as store from '../store.js';
-import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req } from '../ui.js';
+import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req, vehicleSelect } from '../ui.js';
 import { SERVICE_TYPES, ITEM_KINDS, SUMMARY_FIELDS, itemTotals, reconcile, serviceCost, findServiceDuplicates, odometerTimeline, checkServiceOdometer, cleanItems } from '../core/service.js';
 import { toNum } from '../core/calc.js';
 import { todayStr, isValidDateStr } from '../core/dates.js';
 import { INVOICE_CONFIG } from '../smart/config.js';
 import { preparePhoto, release, blobToDataUrl, ImageError } from '../smart/images.js';
 import { extractInvoice, invoiceReaderIsDemo } from '../smart/invoice-extractor.js';
-import { typeLabel, sampleTag } from './shared.js';
+import { typeLabel, sampleTag, dueLine, statusChip, remindersHTML } from './shared.js';
+import { openRecommendation, vehicleReminders } from '../core/reminders.js';
 
 const enc = encodeURIComponent;
 const typeName = (t) => SERVICE_TYPES[t] || SERVICE_TYPES.other;
@@ -62,6 +63,10 @@ export async function renderHistory(main, { query, navigate }) {
     ${vehicles.length > 1 ? `<div class="chip-row" role="group" aria-label="Vehicle">${vehicles.map((x) => `<a class="chip${x.id === v.id ? ' chip-on' : ''}" href="#/maintenance?v=${enc(x.id)}"${x.id === v.id ? ' aria-current="true"' : ''}>${esc(x.nickname)}</a>`).join('')}</div>` : ''}
     <h2 class="svc-title">${esc(v.nickname)}: service history ${sampleTag(v)}</h2>
     <p class="subtitle">${[typeLabel(v), vehicleLine(v)].filter(Boolean).join(', ')}</p>
+    <section class="block">
+      <div class="section-head"><h2>Upcoming service</h2></div>
+      ${remindersHTML(v, vehicleReminders(v, { services: all, entries: await store.listEntries(v.id), recommendations: await store.listRecommendations(v.id), today: todayStr() }))}
+    </section>
     <div class="actions">
       <a class="btn btn-primary" href="#/service/scan?v=${enc(v.id)}">${icon('camera')}Scan service invoice</a>
       <a class="btn" href="#/service/new?v=${enc(v.id)}">${icon('plus')}Add manually</a>
@@ -103,7 +108,8 @@ export async function renderAddChooser(main, { query }) {
         <span class="choose-icon">${icon('camera')}</span>
         <span><strong>Scan service invoice</strong><span>Take or upload photos of all invoice pages. You check the details before saving.</span></span>
       </a>
-      <a class="btn btn-block" href="#/service/new?v=${enc(v.id)}">${icon('wrench')}Add details manually</a>
+      <div class="or-divider">OR</div>
+      <a class="choose-alt" href="#/service/new?v=${enc(v.id)}">${icon('wrench')}Add details manually</a>
     </div>`;
 }
 
@@ -129,6 +135,23 @@ export async function renderDetail(main, { params, navigate }) {
   const s = r.financialSummary || {};
   const summaryRows = Object.entries(SUMMARY_FIELDS).filter(([k]) => typeof s[k] === 'number').map(([k, l]) => `<div${k === 'grandTotal' ? ' class="sum-total"' : ''}><dt>${l}</dt><dd>${fmt.moneyExact(s[k])}</dd></div>`).join('');
   const checks = reconcile(r).filter((c) => c.level !== 'info');
+  const recs = await store.listRecommendations(r.vehicleId);
+  const linked = recs.find((x) => x.serviceRecordId === r.id);
+  const completes = recs.find((x) => x.completedByServiceId === r.id);
+  let recHTML;
+  if (linked?.status === 'recommended') {
+    const st = linked.completedAt ? '<span class="st st-ok">Done</span>' : statusChip(vehicleReminders(v, { services: await store.listServices(r.vehicleId), entries: await store.listEntries(r.vehicleId), recommendations: [linked], today: todayStr() }).centre?.status || 'upcoming');
+    recHTML = `<div class="rem rem-centre"><div class="rem-head"><span class="rem-src">Recommended by service centre</span>${st}</div>
+      <p class="rem-due">Next service ${esc(dueLine(linked))}</p>
+      ${linked.serviceCentre || linked.notes ? `<p class="rem-meta">${esc([linked.serviceCentre, linked.notes].filter(Boolean).join(' · '))}</p>` : ''}
+      ${linked.completedAt ? `<p class="rem-meta">Completed${linked.completedByServiceId ? ` at the service on ${fmt.date((await store.getService(linked.completedByServiceId))?.serviceDate || linked.completedAt.slice(0, 10))}` : ''}</p>` : ''}
+      <a class="rem-link" href="#/recommendation/${enc(linked.id)}/edit">Edit</a></div>`;
+  } else if (linked) {
+    recHTML = `<p class="muted">${linked.status === 'not-recommended' ? 'The service centre did not recommend a next service.' : 'Not mentioned by the service centre.'} <a href="#/recommendation/${enc(linked.id)}/edit">Change</a></p>`;
+  } else {
+    recHTML = `<p class="muted">None recorded. <a href="#/recommendation/new?service=${enc(r.id)}">Add the service centre's recommendation</a></p>`;
+  }
+  if (completes) recHTML += `<p class="rem-meta">This service completed the recommendation made on ${fmt.date(completes.createdAt.slice(0, 10))}.</p>`;
 
   main.innerHTML = `
     <a class="back" href="#/maintenance?v=${enc(r.vehicleId)}">${icon('back')}Service history</a>
@@ -136,17 +159,20 @@ export async function renderDetail(main, { params, navigate }) {
     <p class="subtitle">${esc(v?.nickname || '')}${v ? `, ${vehicleLine(v)}` : ''}</p>
     <div class="hero-odo svc-hero"><span class="stat-label">Total paid</span><span class="svc-total">${fmt.moneyExact(serviceCost(r))}</span></div>
     <dl class="facts">
-      <div><dt>Odometer</dt><dd>${r.odometerKm ? fmt.km(r.odometerKm) : 'Not recorded'}</dd></div>
-      <div><dt>Service centre</dt><dd>${esc(r.serviceCentre || '–')}</dd></div>
-      <div><dt>Invoice no.</dt><dd>${esc(r.invoiceNumber || '–')}</dd></div>
-      <div><dt>Job card</dt><dd>${esc([r.jobCardNumber, r.jobCardDate && fmt.date(r.jobCardDate)].filter(Boolean).join(', ') || '–')}</dd></div>
-      <div><dt>Payment</dt><dd>${esc(r.paymentMethod || '–')}</dd></div>
-      <div><dt>Location</dt><dd>${esc(r.serviceCentreLocation || '–')}</dd></div>
+      ${[
+        ['Odometer', r.odometerKm ? fmt.km(r.odometerKm) : 'Not recorded'],
+        ['Service centre', r.serviceCentre],
+        ['Location', r.serviceCentreLocation],
+        ['Invoice no.', r.invoiceNumber],
+        ['Job card', [r.jobCardNumber, r.jobCardDate && fmt.date(r.jobCardDate)].filter(Boolean).join(', ')],
+        ['Payment', r.paymentMethod],
+      ].filter(([, val]) => val).map(([k, val]) => `<div><dt>${k}</dt><dd>${esc(val)}</dd></div>`).join('')}
     </dl>
     ${checks.length ? `<section class="checks"><ul>${checks.map((c) => `<li class="check check-${c.level}">${icon(c.level === 'ok' ? 'check' : 'warn')}<span>${esc(c.message)}</span></li>`).join('')}</ul></section>` : ''}
     ${parts.length ? `<section class="block"><h2>Parts replaced (${parts.length})</h2>${itemsTable(parts)}</section>` : ''}
     ${labour.length ? `<section class="block"><h2>Labour and services</h2>${itemsTable(labour)}</section>` : ''}
     ${optional.length ? `<section class="block"><h2>Optional services</h2>${itemsTable(optional)}</section>` : ''}
+    <section class="block"><h2>Next service</h2>${recHTML}</section>
     ${summaryRows ? `<section class="block"><h2>Financial breakdown</h2><dl class="sum-list">${summaryRows}</dl></section>` : ''}
     ${r.notes ? `<section class="block"><h2>Notes</h2><p>${esc(r.notes)}</p></section>` : ''}
     ${r.pageCount ? `<section class="block"><h2>Invoice pages</h2><div class="thumbs page-thumbs" data-pages data-gallery><p class="muted">Loading ${r.pageCount} ${r.pageCount === 1 ? 'page' : 'pages'}…</p></div></section>` : ''}
@@ -218,13 +244,13 @@ export async function renderScan(main, ctx) {
     <p class="lead">Add all pages of one invoice. They are read together as a single service visit; you check everything before saving.</p>
     ${demo ? `<div class="notice notice-demo" role="note">${icon('warn')}<div><p><strong>Demo reader.</strong> Invoice reading needs the photo reader (set readerUrl). Read invoice fills the review screen with made-up sample values, not values from your pages.</p></div></div>` : ''}
     <form class="form" novalidate>
-      ${choices('vehicleId', 'Vehicle', vehicles.map((v) => ({ value: v.id, label: v.nickname, note: [v.make && v.model ? `${v.make} ${v.model}` : '', v.registration].filter(Boolean).join(', ') })), vehicle.id)}
+      ${vehicleSelect(vehicles, vehicle.id)}
       <section class="photo-slot${scan.pages.length ? ' has-photo' : ''}" aria-labelledby="pages-h">
         <h2 id="pages-h">Invoice pages <span class="muted">(${scan.pages.length} of ${max})</span></h2>
         <div data-pages>${pagesHTML()}</div>
         <div class="photo-actions">
-          <label class="btn btn-sm file-btn">${icon('camera')}Take photo<input type="file" accept="image/*" capture="environment" data-add></label>
-          <label class="btn btn-sm file-btn">${icon('plus')}Upload pages<input type="file" accept="image/jpeg,image/png,image/webp" multiple data-add></label>
+          <label class="btn btn-sm file-btn btn-camera">${icon('camera')}Take photo<input type="file" accept="image/*" capture="environment" data-add></label>
+          <label class="btn btn-sm file-btn btn-upload">${icon('image')}Upload pages<input type="file" accept="image/jpeg,image/png,image/webp" multiple data-add></label>
         </div>
         <p class="field-error" data-page-error hidden></p>
       </section>
@@ -355,6 +381,16 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
   const timeline = odometerTimeline(entries, services);
   const latest = timeline.filter((t) => !(t.source === 'service' && t.id === record.id)).slice(-1)[0];
 
+  // Next service recommended by the service centre (own records, linked to this service)
+  const recs = await store.listRecommendations(vehicle.id);
+  const linkedRec = record.id ? recs.find((r) => r.serviceRecordId === record.id) : null;
+  const openRec = mode === 'edit' ? null : openRecommendation(recs);
+  const extracted = review ? record.nextService : null;
+  const recInit = linkedRec || (extracted ? { status: 'recommended', dueDate: extracted.dueDate, dueKm: extracted.dueKm, notes: extracted.notes, serviceCentre: record.serviceCentre } : null);
+  const ANSWER = { recommended: 'yes', 'not-recommended': 'no', 'not-mentioned': 'unsure' };
+  const recAnswer = recInit ? ANSWER[recInit.status] : null;
+  let recEdited = false;
+
   const flagged = (name) => flags.has(name) && !confirmed.has(name);
   const hint = (name, base = '') => base;
   const f = (name, input, base) => {
@@ -412,7 +448,7 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
     <form class="form svc-form" novalidate>
       <p class="form-error" role="alert" tabindex="-1" hidden></p>
       ${mode === 'manual' && vehicles.length > 1
-        ? choices('vehicleId', 'Vehicle', vehicles.map((v) => ({ value: v.id, label: v.nickname })), vehicle.id)
+        ? vehicleSelect(vehicles, vehicle.id)
         : `<p><strong>${esc(vehicle.nickname)}</strong><br><span class="muted">${[typeLabel(vehicle), vehicleLine(vehicle)].filter(Boolean).join(', ')}</span></p>`}
       ${review && (record.vehicleModel || record.registration) ? `<p class="hint">Invoice says: ${esc([record.vehicleMake, record.vehicleModel, record.registration].filter(Boolean).join(' '))}${record.vinLast4 ? `, chassis …${esc(record.vinLast4)}` : ''}</p>` : ''}
 
@@ -438,6 +474,23 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
         </div>
         ${field('notes', 'Notes', `<textarea id="notes" name="notes" rows="2" maxlength="500">${val(record.notes)}</textarea>`)}
       </details>
+
+      <section class="rec-box" aria-labelledby="rec-h">
+        <h2 class="form-section" id="rec-h">Next service recommended by service centre</h2>
+        ${openRec ? choices('completes', `Is this the recommended next service?<small class="legend-sub">Due ${esc(dueLine(openRec))}${openRec.serviceCentre ? ` · ${esc(openRec.serviceCentre)}` : ''}</small>`, [{ value: 'yes', label: 'Yes, it is' }, { value: 'no', label: 'No' }], null) : ''}
+        ${choices('recAnswer', 'Did the service centre recommend when your next service is due?', [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }, { value: 'unsure', label: 'Not sure' }], recAnswer)}
+        <p class="hint">Optional. Skip it if you just want to save the invoice.</p>
+        <div class="rec-fields" data-rec-fields${recAnswer === 'yes' ? '' : ' hidden'}>
+          ${extracted && !linkedRec ? '<span class="read-tag">Read from the invoice · check and edit</span>' : ''}
+          <div class="grid-2">
+            ${field('recDate', 'Next service date', `<input id="recDate" name="recDate" type="date" value="${val(recInit?.dueDate)}">`)}
+            ${field('recKm', 'Next service at (km)', `<input id="recKm" name="recKm" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 25000" value="${val(recInit?.dueKm)}">`)}
+          </div>
+          <p class="hint">Fill one or both. It is due at whichever comes first.</p>
+          ${field('recCentre', 'Service centre', `<input id="recCentre" name="recCentre" type="text" maxlength="120" autocomplete="off" value="${val(recInit?.serviceCentre || record.serviceCentre)}">`)}
+          ${field('recNotes', 'Notes', `<textarea id="recNotes" name="recNotes" rows="2" maxlength="500" placeholder="e.g. Oil change after 5,000 km">${val(recInit?.notes)}</textarea>`)}
+        </div>
+      </section>
 
       ${thumbs ? `<h2 class="form-section">Invoice pages</h2>${thumbs}<p class="hint">${store.canKeepImages() ? 'These pages will be kept with the record in your private account.' : 'Pages are not kept in this-device mode.'}</p>` : ''}
 
@@ -523,7 +576,9 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
       else it.section = ev.target.checked ? 'optional' : 'maintenance';
       repaintItems();
     }
-    if (ev.target.name === 'vehicleId') currentVehicle = vehicles.find((v) => v.id === ev.target.value) || vehicle;
+    if (ev.target.name === 'vehicleId') { ctx.navigate(`/service/new?v=${enc(ev.target.value)}`); return; }
+    if (ev.target.name === 'recAnswer') form.querySelector('[data-rec-fields]').hidden = ev.target.value !== 'yes';
+    if (['recDate', 'recKm', 'recCentre', 'recNotes'].includes(ev.target.name)) recEdited = true;
     paintChecks();
   });
   form.addEventListener('click', (ev) => {
@@ -561,6 +616,16 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
     for (const k of FORM_SUMMARY) if (Number.isNaN(d.financialSummary[k])) errors[`sum-${k}`] = 'Numbers only, like 1234.50.';
     if (!(d.financialSummary.grandTotal > 0) && !(itemTotals(d.items).all > 0)) errors['sum-grandTotal'] = 'Enter the grand total paid.';
     if (d.items.some((i) => Number.isNaN(i.total))) errors._form = 'Some line totals are not numbers.';
+    const rf = new FormData(form);
+    const answer = rf.get('recAnswer');
+    const recDate = (rf.get('recDate') || '').trim();
+    const recKm = toNum(rf.get('recKm'));
+    if (answer === 'yes') {
+      if (!recDate && recKm === null) errors.recDate = 'Add a date, a km reading, or both. Or choose “Not sure”.';
+      if (recDate && (!isValidDateStr(recDate) || (d.serviceDate && recDate <= d.serviceDate))) errors.recDate = 'Choose a date after the service date.';
+      if (Number.isNaN(recKm) || (recKm !== null && recKm <= 0)) errors.recKm = 'Numbers only, like 25000.';
+      else if (recKm !== null && d.odometerKm && recKm <= d.odometerKm) errors.recKm = `Should be more than this service's ${fmt.km(d.odometerKm)}.`;
+    }
     if (!showFieldErrors(form, errors)) return;
 
     const dups = findServiceDuplicates(d, await store.listServices(d.vehicleId));
@@ -586,6 +651,18 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
         if (pages?.length && store.canKeepImages()) keep = await Promise.all(pages.map((p) => blobToDataUrl(p.blob)));
         if (review) d.extractionMetadata = { reader: d.source === 'smart-demo' ? 'demo' : 'cloud', model: record.readerModel || null, pages: pages?.length || 0, fieldsNeedingReview: [...flags], readAt: new Date().toISOString() };
         const saved = await store.saveService(d, keep);
+        if (openRec && rf.get('completes') === 'yes') {
+          await store.saveRecommendation({ ...openRec, completedAt: new Date().toISOString(), completedByServiceId: saved.id });
+        }
+        if (answer) {
+          const status = { yes: 'recommended', no: 'not-recommended', unsure: 'not-mentioned' }[answer];
+          await store.saveRecommendation({
+            id: linkedRec?.id, vehicleId: saved.vehicleId, serviceRecordId: saved.id, status,
+            dueDate: recDate || null, dueKm: recKm, serviceCentre: (rf.get('recCentre') || '').trim() || saved.serviceCentre,
+            notes: rf.get('recNotes'), source: extracted && !recEdited ? 'invoice' : (linkedRec?.source || 'manual'),
+            completedAt: linkedRec?.completedAt || null, completedByServiceId: linkedRec?.completedByServiceId || null,
+          });
+        }
         store.setPref('lastVehicle', saved.vehicleId);
         if (review) resetScan();
         toast(mode === 'edit' ? 'Service updated' : 'Service saved');
@@ -594,5 +671,70 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
         showFieldErrors(form, { _form: err.message });
       }
     });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Edit a service-centre recommendation later (#/recommendation/:id/edit,
+// #/recommendation/new?service=id)
+// ---------------------------------------------------------------------------
+
+export async function renderRecommendation(main, { params, query, navigate }) {
+  let rec = params[0] ? await store.getRecommendation(params[0]) : null;
+  const service = await store.getService(rec?.serviceRecordId || query.get('service'));
+  if (params[0] && !rec) { main.innerHTML = '<h1 class="page-title" tabindex="-1">Not found</h1><p><a href="#/maintenance">Back to Maintenance</a></p>'; return; }
+  if (!rec && !service) { main.innerHTML = '<h1 class="page-title" tabindex="-1">Not found</h1><p><a href="#/maintenance">Back to Maintenance</a></p>'; return; }
+  const vehicleId = rec?.vehicleId || service.vehicleId;
+  const answer = rec ? { recommended: 'yes', 'not-recommended': 'no', 'not-mentioned': 'unsure' }[rec.status] : 'yes';
+  const val = (x) => (x === null || x === undefined ? '' : esc(x));
+  main.innerHTML = `
+    <a class="back" href="${service ? `#/service/${enc(service.id)}` : `#/maintenance?v=${enc(vehicleId)}`}">${icon('back')}${service ? 'Service details' : 'Service history'}</a>
+    <h1 class="page-title" tabindex="-1">Next service</h1>
+    <p class="subtitle">Recommended by the service centre${service ? ` at the service on ${fmt.date(service.serviceDate)}` : ''}.</p>
+    <form class="form rec-box" novalidate>
+      <p class="form-error" role="alert" hidden></p>
+      ${choices('recAnswer', 'Did the service centre recommend when your next service is due?', [{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }, { value: 'unsure', label: 'Not sure' }], answer)}
+      <div data-rec-fields${answer === 'yes' ? '' : ' hidden'}>
+        <div class="grid-2">
+          ${field('recDate', 'Next service date', `<input id="recDate" name="recDate" type="date" value="${val(rec?.dueDate)}">`)}
+          ${field('recKm', 'Next service at (km)', `<input id="recKm" name="recKm" type="text" inputmode="numeric" placeholder="e.g. 25000" value="${val(rec?.dueKm)}">`)}
+        </div>
+        <p class="hint">Fill one or both. It is due at whichever comes first.</p>
+        ${field('recCentre', 'Service centre', `<input id="recCentre" name="recCentre" type="text" maxlength="120" value="${val(rec?.serviceCentre || service?.serviceCentre)}">`)}
+        ${field('recNotes', 'Notes', `<textarea id="recNotes" name="recNotes" rows="2" maxlength="500" placeholder="e.g. Replace brake pads at next service">${val(rec?.notes)}</textarea>`)}
+      </div>
+      <div class="form-actions form-actions-stack">
+        <button class="btn btn-primary btn-block" type="submit">${icon('check')}Save</button>
+        ${rec?.status === 'recommended' && !rec.completedAt ? '<button class="btn" type="button" data-done>Mark as done</button>' : ''}
+      </div>
+    </form>`;
+  const form = main.querySelector('form');
+  form.addEventListener('change', (ev) => { if (ev.target.name === 'recAnswer') form.querySelector('[data-rec-fields]').hidden = ev.target.value !== 'yes'; });
+  const back = () => navigate(service ? `/service/${enc(service.id)}` : `/maintenance?v=${enc(vehicleId)}`);
+  form.querySelector('[data-done]')?.addEventListener('click', async () => {
+    try { await store.saveRecommendation({ ...rec, completedAt: new Date().toISOString() }); } catch (err) { toast(err.message, 'error'); return; }
+    toast('Marked as done'); back();
+  });
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const fd = new FormData(form);
+    const ans = fd.get('recAnswer');
+    const dueDate = (fd.get('recDate') || '').trim();
+    const dueKm = toNum(fd.get('recKm'));
+    const errors = {};
+    if (ans === 'yes') {
+      if (!dueDate && dueKm === null) errors.recDate = 'Add a date, a km reading, or both.';
+      if (dueDate && (!isValidDateStr(dueDate) || (service && dueDate <= service.serviceDate))) errors.recDate = 'Choose a date after the service date.';
+      if (Number.isNaN(dueKm) || (dueKm !== null && dueKm <= 0)) errors.recKm = 'Numbers only, like 25000.';
+    }
+    if (!showFieldErrors(form, errors)) return;
+    try {
+      await store.saveRecommendation({
+        ...(rec || {}), id: rec?.id, vehicleId, serviceRecordId: rec?.serviceRecordId || service?.id,
+        status: { yes: 'recommended', no: 'not-recommended', unsure: 'not-mentioned' }[ans] || 'not-mentioned',
+        dueDate: dueDate || null, dueKm, serviceCentre: fd.get('recCentre'), notes: fd.get('recNotes'), source: rec?.source || 'manual',
+      });
+    } catch (err) { showFieldErrors(form, { _form: err.message }); return; }
+    toast('Saved'); back();
   });
 }

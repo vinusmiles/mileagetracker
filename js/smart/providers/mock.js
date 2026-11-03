@@ -67,6 +67,7 @@ export async function extractInvoice({ pages, vehicle, latestOdometer, onProgres
     odometerKm: (latestOdometer || 10000) + (two ? 150 : 450), paymentMethod: 'Cash', warranty: null,
     items,
     financialSummary: { partsTotal: parts, labourTotal: labour, grossAmount: parts + labour, adjustments: 0, grandTotal: parts + labour },
+    nextServiceDate: null, nextServiceKm: (latestOdometer || 10000) + (two ? 6150 : 15450), nextServiceNotes: 'Demo: next periodic service',
     fieldsNeedingReview: ['odometerKm', 'serviceCentre'],
   };
 }

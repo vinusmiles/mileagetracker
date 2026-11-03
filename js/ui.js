@@ -14,6 +14,7 @@ const ICONS = {
   history: '<path d="M8 6h12"/><path d="M8 12h12"/><path d="M8 18h12"/><circle cx="4" cy="6" r=".8"/><circle cx="4" cy="12" r=".8"/><circle cx="4" cy="18" r=".8"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  scanfuel: '<path d="M3 8V4.8A1.8 1.8 0 0 1 4.8 3H8M16 3h3.2A1.8 1.8 0 0 1 21 4.8V8M21 16v3.2a1.8 1.8 0 0 1-1.8 1.8H16M8 21H4.8A1.8 1.8 0 0 1 3 19.2V16"/><path d="M8.2 17V8.6a1 1 0 0 1 1-1h3.6a1 1 0 0 1 1 1V17M7.6 17h6.8M9.6 10h2.8"/><path d="M13.8 11h1.1a.9.9 0 0 1 .9.9v2.4a.9.9 0 0 0 1.8 0V9.6l-1.3-1.3"/>',
   wrench: '<path d="M14.5 5.5a4 4 0 0 0 4.9 4.9l-8.6 8.6a2.1 2.1 0 0 1-3-3l8.6-8.6a4 4 0 0 1-1.9-1.9z"/><path d="M15 3.5l2.2 2.2-1.7 1.7"/>',
   camera: '<path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1.5-2h6l1.5 2h2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><circle cx="12" cy="12.5" r="3.5"/>',
   receipt: '<path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
@@ -260,3 +261,14 @@ document.addEventListener('click', (ev) => {
 
 /** Label text with a red asterisk for required fields. */
 export const req = (label) => `${label}<span class="req" aria-hidden="true">*</span><span class="sr-only"> (required)</span>`;
+
+/** Compact vehicle picker: one dropdown line instead of big tiles. */
+export function vehicleSelect(vehicles, selectedId, label = 'Vehicle') {
+  const opts = vehicles.map((v) => `<option value="${esc(v.id)}"${v.id === selectedId ? ' selected' : ''}>${esc(v.nickname)}</option>`).join('');
+  return `
+    <div class="field field-inline" data-field="vehicleId">
+      <label for="vehicleId">${label}</label>
+      <select id="vehicleId" name="vehicleId" class="vehicle-select">${opts}</select>
+      <p class="field-error" id="vehicleId-error" hidden></p>
+    </div>`;
+}

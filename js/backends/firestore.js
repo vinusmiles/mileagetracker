@@ -20,6 +20,7 @@ export function createFirestoreBackend(fb, uid) {
   const vehicleRef = (id) => fs.doc(userRef, 'vehicles', id);
   const entryRef = (e) => fs.doc(userRef, 'vehicles', e.vehicleId, 'fuelEntries', e.id);
   const serviceRef = (x) => fs.doc(userRef, 'vehicles', x.vehicleId, 'serviceRecords', x.id);
+  const recRef = (x) => fs.doc(userRef, 'vehicles', x.vehicleId, 'recommendations', x.id);
   const pageRef = (x, i) => fs.doc(userRef, 'vehicles', x.vehicleId, 'serviceRecords', x.id, 'pages', String(i));
   const strip = (x) => JSON.parse(JSON.stringify(x)); // drops undefined values
 
@@ -52,7 +53,9 @@ export function createFirestoreBackend(fb, uid) {
       const entries = entryLists.flatMap((s, i) => s.docs.map((d) => ({ ...d.data(), id: d.id, vehicleId: vehicles[i].id })));
       const serviceLists = await Promise.all(vehicles.map((v) => fs.getDocs(fs.collection(userRef, 'vehicles', v.id, 'serviceRecords'))));
       const services = serviceLists.flatMap((s, i) => s.docs.map((d) => ({ ...d.data(), id: d.id, vehicleId: vehicles[i].id })));
-      return { version: 1, vehicles, entries, services };
+      const recLists = await Promise.all(vehicles.map((v) => fs.getDocs(fs.collection(userRef, 'vehicles', v.id, 'recommendations'))));
+      const recommendations = recLists.flatMap((s, i) => s.docs.map((d) => ({ ...d.data(), id: d.id, vehicleId: vehicles[i].id })));
+      return { version: 1, vehicles, entries, services, recommendations };
     },
 
     /** Invoice pages are loaded only when a record is opened. */
@@ -75,6 +78,8 @@ export function createFirestoreBackend(fb, uid) {
         for (let i = 0; i < (x.pageCount || 0); i++) writes.push((b) => b.delete(pageRef(x, i)));
         writes.push((b) => b.delete(serviceRef(x)));
       }
+      for (const r of ops.putRecommendations || []) writes.push((b) => b.set(recRef(r), strip(r)));
+      for (const r of ops.deleteRecommendations || []) writes.push((b) => b.delete(recRef(r)));
       for (const e of ops.deleteEntries || []) writes.push((b) => b.delete(entryRef(e)));
       for (const v of ops.deleteVehicles || []) writes.push((b) => b.delete(vehicleRef(v.id)));
       await commit(writes);

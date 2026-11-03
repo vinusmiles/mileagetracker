@@ -18,8 +18,10 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | Maintenance Stage 2: real invoice reading (Worker 0.5.0, route `/extract-invoice`) | ✅ Built (v0.7), to verify on the Nexon invoice |
 | v0.8: GaadiKhata name, Add service on vehicles, pump-display photos, example photos, no "Looks right" prompts, 22-Oct-2026 dates | ✅ Built |
 | v0.9: CNG vehicles (kg, ₹/kg, km/kg), CNG dispenser photos, optional vehicle odometer, in-app photo viewer | ✅ Built |
-| v1.0: redesign (green app header, month-first dashboard, vehicle tiles, compact fill rows, collapsible filters, required ✱ marks, simpler service form) | ✅ Built |
-| Maintenance Stage 3–4: analytics, reminders, production tests | To do |
+| v1.0–1.1: redesign (hybrid look: white app bar, green month card; month-first dashboard, vehicle tiles, compact fill rows, collapsible filters, required ✱ marks, simpler service form) | ✅ Built |
+| v1.2: **Scan** centre button; compact vehicle dropdown; service reminders (service-centre recommendation + GaadiKhata's generic intervals, kept separate) | ✅ Built |
+| v1.3: Scan opens Add fuel (smart or manual); new scan-fuel icon; Instagram contact buttons with a rotating border | ✅ Built |
+| Maintenance analytics, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |
 | Stage 4: more real-world photo tests (other companies, glare, faded receipts) | Ongoing |
@@ -31,7 +33,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | Website | **https://gaadikhata.co.in** (custom domain, registered at GoDaddy; GitHub repo `vinusmiles/mileagetracker`, files at the repo root, `CNAME` file holds the domain). The old https://vinusmiles.github.io/mileagetracker/ address redirects to it |
 | Firebase project | `mileagemate-1311` (Spark plan, free): Authentication (Google) and Firestore (`asia-south1`, Mumbai) |
 | Authorised domains | `vinusmiles.github.io`, `gaadikhata.co.in`, `www.gaadikhata.co.in` |
-| Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.5.2) |
+| Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.6.0) |
 | Reader settings | Secret `ANTHROPIC_API_KEY`; text `FIREBASE_PROJECT_ID`, `ALLOWED_ORIGINS`, `DAILY_LIMIT` (30); KV binding `SCANS` → namespace `mileagemate-scans` |
 | AI provider | Claude API (Claude Console, individual account, prepaid credit), key `mileagemate-reader-2`, no expiry, model `claude-haiku-5-5` |
 
@@ -157,6 +159,15 @@ Bottom bar → **Maintenance** (Settings moved to the ⚙️ in the top bar).
 
 **After uploading v0.6, publish the updated `firestore.rules`** (Firebase → Firestore Database → Rules → paste → Publish). Without it, saving a service record shows "The cloud refused this change".
 
+## Service reminders
+
+Two separate sources, never mixed:
+
+- **Service-centre recommendation:** on the service review/entry form, "Did the service centre recommend when your next service is due?" (Yes / No / Not sure). With Yes: date and/or km, centre and notes. If the invoice prints it explicitly, the reader pre-fills it ("Read from the invoice"); it never works one out. Stored in `users/{uid}/vehicles/{vid}/recommendations/{id}`, linked to the service record. Editable later (Service details → Next service → Edit). When a new service is saved, the form asks whether it is the recommended service; Yes marks the old recommendation completed (it is kept, never deleted).
+- **GaadiKhata suggestion (general guide):** routine service and engine-oil change, counted from the last service (oil: the last service with an engine-oil line). Defaults: two-wheeler 6 months or 6,000 km; four-wheeler 12 months or 15,000 km. Changeable per vehicle (Edit vehicle → Service reminder intervals), saved as `reminderSettings` on the vehicle.
+
+**Due logic:** due when the date arrives **or** the odometer (latest reading from fuel fills and services) reaches the km, whichever comes first; "due soon" within 30 days or 500 km (two-wheeler) / 1,000 km (four-wheeler). The dashboard shows **one alert per vehicle** (the service-centre recommendation wins over the generic suggestion, so the same visit is never announced twice); the vehicle page and service history list both, labelled by source. Reminders are shown in the app; there are no phone notifications.
+
 ## Smart fuel entry: how photo reading works
 
 1. Add fuel → **Smart fuel entry** → pick the vehicle → add the **fuel bill or pump reading** photo, the odometer photo, or both → **Read details**. Example photos are shown in the empty slots (`assets/samples/`, WebP so they pass the publish filter).
@@ -182,7 +193,7 @@ Reader instructions handle known traps: Atot/Vtot running totals, "Printed on" t
 | "today's 30 photo scans" | Daily limit reached | Wait until tomorrow (UTC), or raise `DAILY_LIMIT` |
 | "The photo reader is not set up yet" | Secret, project id or `SCANS` binding missing | Re-check the Worker settings |
 
-Opening the Worker address in a browser should show `{"error":"origin-not-allowed",…,"allowedCount":1,"version":"0.5.2"}`: that confirms the version and that the allowed-website setting is loaded.
+Opening the Worker address in a browser should show `{"error":"origin-not-allowed",…,"allowedCount":1,"version":"0.6.0"}`: that confirms the version and that the allowed-website setting is loaded.
 
 ## Phase 2 setup: Firebase (done; kept for reference)
 

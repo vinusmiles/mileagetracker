@@ -2,7 +2,7 @@
 // keyboards, today's date filled in, last vehicle remembered.
 
 import * as store from '../store.js';
-import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req } from '../ui.js';
+import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req, vehicleSelect } from '../ui.js';
 import { fuelUnit, LIMITS, perUnitWord } from '../core/model.js';
 import { validateEntry } from '../core/validate.js';
 import { toNum, deriveAmounts, sortEntries } from '../core/calc.js';
@@ -39,10 +39,11 @@ export async function render(main, { params, query, navigate }) {
       <h1 class="page-title" tabindex="-1">Add fuel</h1>
       <div class="choose">
         <a class="choose-main" href="#/smart?v=${v}">
-          <span class="choose-icon">${icon('camera')}</span>
-          <span><strong>Smart fuel entry</strong><span>Take or upload a photo of the receipt and odometer. You check the details before saving.</span></span>
+          <span class="choose-icon">${icon('scanfuel')}</span>
+          <span><strong>Smart fuel entry</strong><span>Snap the fuel bill and odometer. We fill in the details.</span></span>
         </a>
-        <a class="btn btn-block" href="#/fuel/new?manual=1&v=${v}">${icon('fuel')}Add details manually</a>
+        <div class="or-divider">OR</div>
+        <a class="choose-alt" href="#/fuel/new?manual=1&v=${v}">${icon('fuel')}Add details manually</a>
       </div>`;
     return;
   }
@@ -50,9 +51,7 @@ export async function render(main, { params, query, navigate }) {
   const e = editing || { vehicleId: vehicle0.id, date: today, quantity: '', pricePerUnit: '', totalAmount: '', odometer: '', fullTank: null, station: '', notes: '', calculated: [] };
   const val = (x) => (x === null || x === undefined ? '' : esc(x));
 
-  const vehicleField = vehicles.length <= 4
-    ? choices('vehicleId', 'Vehicle', vehicles.map((v) => ({ value: v.id, label: v.nickname })), vehicle0.id)
-    : field('vehicleId', 'Vehicle', `<select id="vehicleId" name="vehicleId">${vehicles.map((v) => `<option value="${esc(v.id)}"${v.id === vehicle0.id ? ' selected' : ''}>${esc(v.nickname)}</option>`).join('')}</select>`);
+  const vehicleField = vehicleSelect(vehicles, vehicle0.id);
 
   main.innerHTML = `
     <h1 class="page-title" tabindex="-1">${editing ? 'Edit fuel entry' : 'Add fuel'}</h1>

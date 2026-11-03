@@ -3,6 +3,7 @@
 import * as store from '../store.js';
 import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req } from '../ui.js';
 import { VEHICLE_TYPES, FUEL_TYPES, LIMITS } from '../core/model.js';
+import { intervalSettings, DEFAULT_INTERVALS } from '../core/reminders.js';
 import { validateVehicle } from '../core/validate.js';
 import { toNum } from '../core/calc.js';
 import { analyseAll, vehicleSubtitle, sampleTag } from './shared.js';
@@ -49,7 +50,7 @@ export async function renderList(main) {
     <ul class="vcards">${items}</ul>`;
 }
 
-export async function renderForm(main, { params, navigate }) {
+export async function renderForm(main, { params, query, navigate }) {
   const editing = params[0] ? await store.getVehicle(params[0]) : null;
   if (params[0] && !editing) {
     main.innerHTML = `<h1 class="page-title" tabindex="-1">Vehicle not found</h1><p>It may have been deleted. <a href="#/vehicles">Back to My vehicles</a></p>`;
@@ -76,6 +77,22 @@ export async function renderForm(main, { params, navigate }) {
         ${field('model', 'Model', `<input id="model" name="model" type="text" maxlength="${LIMITS.textMax}" autocomplete="off" value="${esc(v.model)}" placeholder="Activa 6G">`)}
         ${field('registration', 'Registration number', `<input id="registration" name="registration" type="text" maxlength="${LIMITS.textMax}" autocomplete="off" autocapitalize="characters" value="${esc(v.registration)}">`, 'Only if you find it useful. It stays private.')}
       </details>
+      <details class="optional" id="intervals"${query?.get('section') === 'intervals' ? ' open' : ''}>
+        <summary>Service reminder intervals (optional)</summary>
+        <p class="hint">GaadiKhata's general guide, counted from your last service. Change them to suit your vehicle. A service centre's own recommendation is kept separately.</p>
+        ${['routine', 'oil'].map((k) => {
+          const c = intervalSettings({ ...v, type: v.type || 'two' })[k];
+          const label = k === 'routine' ? 'Routine service' : 'Engine oil change';
+          return `<fieldset class="interval" data-kind="${k}">
+            <legend>${label}</legend>
+            <label class="item-opt"><input type="checkbox" name="${k}-on"${c.enabled ? ' checked' : ''}> Remind me</label>
+            <div class="grid-2">
+              ${field(`${k}-months`, 'Every (months)', `<input id="${k}-months" name="${k}-months" type="text" inputmode="numeric" value="${c.months}">`)}
+              ${field(`${k}-km`, 'Or every (km)', `<input id="${k}-km" name="${k}-km" type="text" inputmode="numeric" value="${c.km}">`)}
+            </div>
+          </fieldset>`;
+        }).join('')}
+      </details>
       ${editing ? `<p class="muted">Added on ${fmt.date(editing.createdAt.slice(0, 10))}</p>` : ''}
       <div class="form-actions">
         <button class="btn btn-primary btn-block" type="submit">${editing ? 'Save changes' : 'Add vehicle'}</button>
@@ -89,6 +106,7 @@ export async function renderForm(main, { params, navigate }) {
       </section>` : ''}`;
 
   const form = main.querySelector('form');
+  if (query?.get('section') === 'intervals') setTimeout(() => main.querySelector('#intervals')?.scrollIntoView({ block: 'start' }), 50);
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const fd = new FormData(form);
@@ -103,6 +121,17 @@ export async function renderForm(main, { params, navigate }) {
       registration: fd.get('registration') || '',
     };
     if (Number.isNaN(data.initialOdometer)) data.initialOdometer = -1;
+    // Reminder intervals: saved only when they differ from the defaults for this vehicle type
+    const defaults = DEFAULT_INTERVALS[data.type] || DEFAULT_INTERVALS.four;
+    const reminderSettings = {};
+    for (const k of ['routine', 'oil']) {
+      const months = toNum(fd.get(`${k}-months`));
+      const km = toNum(fd.get(`${k}-km`));
+      const on = fd.get(`${k}-on`) === 'on';
+      const clean = { enabled: on, months: months > 0 && months <= 60 ? Math.round(months) : defaults[k].months, km: km > 0 && km <= 100000 ? Math.round(km) : defaults[k].km };
+      if (!on || clean.months !== defaults[k].months || clean.km !== defaults[k].km) reminderSettings[k] = clean;
+    }
+    data.reminderSettings = Object.keys(reminderSettings).length ? reminderSettings : (editing?.reminderSettings ? {} : null);
     const errors = validateVehicle(data);
     if (errors.make || errors.model || errors.registration) form.querySelector('details').open = true;
     if (!showFieldErrors(form, errors)) return;

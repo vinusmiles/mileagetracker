@@ -50,7 +50,7 @@ export async function useBackend(next) {
   await ensureLoaded();
 }
 
-const withDefaults = (d) => ({ ...d, services: Array.isArray(d.services) ? d.services : [] });
+const withDefaults = (d) => ({ ...d, services: Array.isArray(d.services) ? d.services : [], recommendations: Array.isArray(d.recommendations) ? d.recommendations : [] });
 
 export async function ensureLoaded() {
   if (!db) db = withDefaults(await backend.load());
@@ -120,6 +120,7 @@ export async function saveVehicle(data) {
     fuelType: data.fuelType,
     initialOdometer: Number.isFinite(data.initialOdometer) ? data.initialOdometer : null,
   };
+  if (data.reminderSettings) fields.reminderSettings = data.reminderSettings;
   let saved;
   if (data.id) {
     const old = d.vehicles.find((x) => x.id === data.id);
@@ -140,8 +141,9 @@ export async function deleteVehicle(id) {
   if (!vehicle) return;
   const gone = d.entries.filter((e) => e.vehicleId === id);
   const goneServices = d.services.filter((x) => x.vehicleId === id);
-  const next = { ...d, vehicles: d.vehicles.filter((v) => v.id !== id), entries: d.entries.filter((e) => e.vehicleId !== id), services: d.services.filter((x) => x.vehicleId !== id) };
-  await apply({ deleteEntries: gone, deleteServices: goneServices, deleteVehicles: [vehicle] }, next);
+  const goneRecs = d.recommendations.filter((x) => x.vehicleId === id);
+  const next = { ...d, vehicles: d.vehicles.filter((v) => v.id !== id), entries: d.entries.filter((e) => e.vehicleId !== id), services: d.services.filter((x) => x.vehicleId !== id), recommendations: d.recommendations.filter((x) => x.vehicleId !== id) };
+  await apply({ deleteEntries: gone, deleteServices: goneServices, deleteRecommendations: goneRecs, deleteVehicles: [vehicle] }, next);
 }
 
 // ---- Fuel entries -------------------------------------------------------------
@@ -264,6 +266,49 @@ export async function getServicePages(record) {
   return backend.loadPages(record);
 }
 
+// ---- Service-centre recommendations (next service) ------------------------------
+// Own records, linked to the service they came from. Never deleted automatically:
+// completing one only adds completedAt and completedByServiceId.
+
+export async function listRecommendations(vehicleId = null) {
+  const d = await ensureLoaded();
+  return copy(d.recommendations.filter((r) => !vehicleId || r.vehicleId === vehicleId))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+}
+
+export async function getRecommendation(id) {
+  const r = (await ensureLoaded()).recommendations.find((x) => x.id === id);
+  return r ? copy(r) : null;
+}
+
+export async function saveRecommendation(data) {
+  const d = await ensureLoaded();
+  if (!d.vehicles.some((v) => v.id === data.vehicleId)) throw new StoreError('Choose a vehicle that still exists.');
+  const clean = (v, max) => (v ? String(v).trim().slice(0, max) : null);
+  const fields = {
+    vehicleId: data.vehicleId,
+    serviceRecordId: data.serviceRecordId || null,
+    status: ['recommended', 'not-recommended', 'not-mentioned'].includes(data.status) ? data.status : 'not-mentioned',
+    dueDate: data.status === 'recommended' ? (data.dueDate || null) : null,
+    dueKm: data.status === 'recommended' && Number.isFinite(data.dueKm) && data.dueKm > 0 ? Math.round(data.dueKm) : null,
+    serviceCentre: clean(data.serviceCentre, 120),
+    notes: clean(data.notes, 500),
+    source: data.source === 'invoice' ? 'invoice' : 'manual',
+    completedAt: data.completedAt || null,
+    completedByServiceId: data.completedByServiceId || null,
+  };
+  let saved;
+  if (data.id) {
+    const old = d.recommendations.find((x) => x.id === data.id);
+    if (!old) throw new StoreError('This recommendation no longer exists.');
+    saved = { ...old, ...fields, updatedAt: now() };
+  } else {
+    saved = { id: newId(), ...fields, createdAt: now(), updatedAt: now() };
+  }
+  await apply({ putRecommendations: [saved] }, { ...d, recommendations: [...d.recommendations.filter((x) => x.id !== saved.id), saved] });
+  return copy(saved);
+}
+
 // ---- Sample data, import and reset ------------------------------------------------
 
 export async function hasDemoData() {
@@ -283,8 +328,8 @@ export async function removeDemoData() {
   const gone = d.entries.filter((e) => e.demo || demoIds.has(e.vehicleId));
   const goneServices = d.services.filter((x) => demoIds.has(x.vehicleId));
   await apply(
-    { deleteEntries: gone, deleteServices: goneServices, deleteVehicles: d.vehicles.filter((v) => v.demo) },
-    { ...d, vehicles: d.vehicles.filter((v) => !v.demo), entries: d.entries.filter((e) => !gone.includes(e)), services: d.services.filter((x) => !demoIds.has(x.vehicleId)) },
+    { deleteEntries: gone, deleteServices: goneServices, deleteRecommendations: d.recommendations.filter((x) => demoIds.has(x.vehicleId)), deleteVehicles: d.vehicles.filter((v) => v.demo) },
+    { ...d, vehicles: d.vehicles.filter((v) => !v.demo), entries: d.entries.filter((e) => !gone.includes(e)), services: d.services.filter((x) => !demoIds.has(x.vehicleId)), recommendations: d.recommendations.filter((x) => !demoIds.has(x.vehicleId)) },
   );
 }
 
@@ -313,7 +358,7 @@ export async function importData({ vehicles, entries, services = [] }) {
 
 export async function deleteAllData() {
   const d = await ensureLoaded();
-  await apply({ deleteEntries: d.entries, deleteServices: d.services, deleteVehicles: d.vehicles }, { version: 1, vehicles: [], entries: [], services: [] });
+  await apply({ deleteEntries: d.entries, deleteServices: d.services, deleteRecommendations: d.recommendations, deleteVehicles: d.vehicles }, { version: 1, vehicles: [], entries: [], services: [], recommendations: [] });
 }
 
 // ---- Small preferences (last used vehicle, and so on) ----------------------------

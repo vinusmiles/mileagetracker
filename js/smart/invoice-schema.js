@@ -64,6 +64,12 @@ export function normaliseInvoice(raw) {
   out.items = (Array.isArray(r.items) ? r.items : []).slice(0, 200).map(cleanItem).filter((i) => i.description || i.total !== null);
   out.financialSummary = {};
   for (const k of Object.keys(SUMMARY_FIELDS)) out.financialSummary[k] = money(r.financialSummary?.[k]);
+  // Next service, only when the invoice printed it (the reader is told never to infer it).
+  const nd = r.nextServiceDate && isValidDateStr(r.nextServiceDate) ? r.nextServiceDate : null;
+  const nk = toNum(r.nextServiceKm);
+  out.nextService = (nd || (nk > 0))
+    ? { dueDate: nd, dueKm: nk > 0 ? Math.round(nk) : null, notes: text(r.nextServiceNotes, 300) }
+    : null;
   out.fieldsNeedingReview = [...review];
   return out;
 }

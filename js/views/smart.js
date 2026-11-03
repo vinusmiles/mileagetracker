@@ -4,7 +4,7 @@
 // go back without re-taking them; they are released on save or cancel.
 
 import * as store from '../store.js';
-import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, mileageHint, req } from '../ui.js';
+import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, mileageHint, req, vehicleSelect } from '../ui.js';
 import { FUEL_TYPES, LIMITS, fuelUnitName, perUnitWord } from '../core/model.js';
 import { validateEntry } from '../core/validate.js';
 import { toNum, sortEntries, analyseVehicle } from '../core/calc.js';
@@ -105,13 +105,12 @@ function slotHTML(kind) {
 
 function renderCapture(main, vehicles, ctx) {
   slotFuel = vehicles.find((v) => v.id === session.vehicleId)?.fuelType || 'petrol';
-  const vehicleOpts = vehicles.map((v) => ({ value: v.id, label: v.nickname, note: [typeLabel(v), v.registration].filter(Boolean).join(', ') }));
   main.innerHTML = `
     <h1 class="page-title" tabindex="-1">Smart fuel entry</h1>
     <p class="lead">Snap your fuel bill and odometer. We fill in the details.</p>
     ${demoNotice()}
     <form class="form smart-capture" novalidate>
-      ${choices('vehicleId', 'Vehicle', vehicleOpts, session.vehicleId)}
+      ${vehicleSelect(vehicles, session.vehicleId)}
       <div class="photo-slots">${slotHTML('receipt')}${slotHTML('odometer')}</div>
       <p class="hint">${providerInfo().isDemo ? 'Demo mode: photos stay on this phone.' : 'Photos are read securely and not stored.'}</p>
       <p class="form-error" role="alert" hidden></p>

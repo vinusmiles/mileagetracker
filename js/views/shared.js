@@ -1,6 +1,7 @@
 // Pieces used by more than one screen.
 
 import { esc, fmt } from '../ui.js';
+import { dueText } from '../core/reminders.js';
 import { barChart, shortMoney } from '../charts.js';
 import { monthlyTotals, analyseVehicle } from '../core/calc.js';
 import { lastMonths } from '../core/dates.js';
@@ -97,7 +98,44 @@ export function compactRow(row, vehicle, { showVehicle = true } = {}) {
     <li><a class="row-link" href="#/fuel/${encodeURIComponent(e.id)}/edit" aria-label="Fill on ${esc(fmt.date(e.date))}${vehicle ? `, ${esc(vehicle.nickname)}` : ''}, ${esc(fmt.moneyExact(e.totalAmount))}">
       <span class="row-date"><b>${d}</b><span>${MON[Number(m) - 1]}</span></span>
       <span class="row-title">${title}</span>
-      <span class="row-amt"><b>${fmt.money(e.totalAmount)}</b>${iv?.valid ? `<span class="chip">${fmt.mileage(iv.mileage, unit).replace(' ', '\u00a0')}</span>` : ''}</span>
+      <span class="row-amt"><b>${fmt.money(e.totalAmount)}</b>${iv?.valid ? `<span class="mchip">${fmt.mileage(iv.mileage, unit).replace(' ', '\u00a0')}</span>` : ''}</span>
       <span class="row-sub">${row.issue ? '<span class="row-flag">Check odometer · </span>' : ''}${sub}</span>
     </a></li>`;
+}
+
+// ---- Service reminders --------------------------------------------------------
+
+
+const STATUS = { overdue: ['Overdue', 'st-overdue'], 'due-soon': ['Due soon', 'st-soon'], upcoming: ['Upcoming', 'st-ok'], unknown: ['Add odometer', 'st-ok'] };
+
+export function statusChip(status) {
+  const [label, cls] = STATUS[status] || STATUS.upcoming;
+  return `<span class="st ${cls}">${label}</span>`;
+}
+
+export const dueLine = (r) => dueText(r, fmt.date, fmt.km);
+
+/** "Upcoming service" block: service-centre recommendation first, GaadiKhata's suggestions below, clearly labelled. */
+export function remindersHTML(vehicle, rem, { editIntervals = true } = {}) {
+  const parts = [];
+  if (rem.centre) {
+    const c = rem.centre;
+    parts.push(`
+      <div class="rem rem-centre">
+        <div class="rem-head"><span class="rem-src">Service centre recommendation</span>${statusChip(c.status)}</div>
+        <p class="rem-due">Next service ${esc(dueLine(c))}</p>
+        ${c.serviceCentre || c.notes ? `<p class="rem-meta">${esc([c.serviceCentre, c.notes].filter(Boolean).join(' · '))}</p>` : ''}
+        <a class="rem-link" href="#/recommendation/${encodeURIComponent(c.id)}/edit">Edit</a>
+      </div>`);
+  }
+  if (rem.generic.length) {
+    parts.push(`
+      <div class="rem rem-generic">
+        <div class="rem-head"><span class="rem-src">GaadiKhata suggestion <small>(general guide)</small></span></div>
+        ${rem.generic.map((g) => `<p class="rem-row"><span>${esc(g.label)} ${esc(dueLine(g))}</span>${statusChip(g.status)}</p>`).join('')}
+        ${editIntervals ? `<a class="rem-link" href="#/vehicles/${encodeURIComponent(vehicle.id)}/edit?section=intervals">Change intervals</a>` : ''}
+      </div>`);
+  }
+  if (!parts.length) parts.push('<p class="muted">Add a service record to start service reminders.</p>');
+  return parts.join('');
 }

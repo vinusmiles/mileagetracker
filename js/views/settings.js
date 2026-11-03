@@ -26,7 +26,7 @@ export async function render(main, { refresh }) {
     <section class="block">
       <h2>Contact us</h2>
       <p>Questions, ideas or a bill that was read wrongly? Message us on Instagram.</p>
-      <a class="btn" href="https://www.instagram.com/gaadikhata/" target="_blank" rel="noopener">${icon('instagram')}@gaadikhata</a>
+      <a class="btn btn-insta" href="https://www.instagram.com/gaadikhata/" target="_blank" rel="noopener">${icon('instagram')}Message @gaadikhata <span aria-hidden="true">›</span></a>
     </section>
 
     <section class="block">
@@ -52,7 +52,7 @@ export async function render(main, { refresh }) {
 
     <section class="block">
       <h2>About</h2>
-      <p>GaadiKhata, version 1.0.1.</p>
+      <p>GaadiKhata, version 1.3.1.</p>
       <p class="muted">© 2026 GaadiKhata. All rights reserved.</p>
     </section>
 
