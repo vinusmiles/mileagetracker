@@ -46,7 +46,7 @@ service cloud.firestore {
     }
 
     function validEntry(d, vehicleId, entryId) {
-      return d.keys().hasAll(['id', 'vehicleId', 'date', 'quantity', 'totalAmount', 'odometer', 'fullTank', 'createdAt', 'updatedAt'])
+      return d.keys().hasAll(['id', 'vehicleId', 'date', 'quantity', 'totalAmount', 'fullTank', 'createdAt', 'updatedAt'])
         && d.keys().hasOnly(['id', 'vehicleId', 'date', 'quantity', 'unit', 'pricePerUnit', 'totalAmount',
                              'station', 'odometer', 'fullTank', 'notes', 'calculated', 'demo',
                              'createdAt', 'updatedAt', 'time', 'fuelCompany', 'location',
@@ -56,7 +56,7 @@ service cloud.firestore {
         && d.date is string && d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
         && d.quantity is number && d.quantity > 0 && d.quantity <= 1000
         && d.totalAmount is number && d.totalAmount > 0 && d.totalAmount <= 1000000
-        && d.odometer is number && d.odometer > 0 && d.odometer <= 9999999
+        && (!('odometer' in d) || d.odometer == null || (d.odometer is number && d.odometer > 0 && d.odometer <= 9999999))
         && d.fullTank is bool
         && (!('pricePerUnit' in d) || d.pricePerUnit == null || (d.pricePerUnit is number && d.pricePerUnit > 0))
         && (!('unit' in d) || d.unit in ['L', 'kg', 'kWh'])

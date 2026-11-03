@@ -24,7 +24,7 @@ const FORM_NAME = {
 const LABELS = {
   date: 'Date', time: 'Time', fuelType: 'Fuel type', quantity: 'Fuel quantity', pricePerUnit: 'Price per unit (₹)',
   totalAmount: 'Total paid (₹)', fuelCompany: 'Fuel company', station: 'Fuel station', location: 'Location',
-  receiptNumber: 'Receipt number', odometer: 'Odometer (km)', dashboardRangeKm: 'Range shown on dashboard (km)', fullTank: 'Full tank',
+  receiptNumber: 'Receipt number', odometer: 'Odometer (km)', dashboardRangeKm: 'Range on dashboard (km)', fullTank: 'Full tank',
 };
 // Shown on the review screen. Time, location and receipt number may still be read
 // by a provider, but they are not shown or saved.
@@ -74,28 +74,28 @@ let slotFuel = 'petrol'; // fuel type of the selected vehicle, for the example p
 function slotHTML(kind) {
   const photo = session[kind];
   const isReceipt = kind === 'receipt';
-  const title = isReceipt ? 'Fuel bill or pump reading' : 'Odometer';
-  const help = isReceipt ? 'The printed bill, or a photo of the pump display showing amount, quantity and rate.' : 'The dashboard with the ODO reading clearly visible.';
+  const title = isReceipt ? 'Fuel bill' : 'Odometer';
+  const help = isReceipt ? 'Printed bill or pump screen' : 'Dashboard showing ODO';
   const examples = isReceipt
     ? (slotFuel === 'cng'
-      ? [['cng-reading.webp', 'Example: CNG dispenser display (total, kg, rate per kg)']]
-      : [['fuel-bill.webp', 'Example: printed fuel bill'], ['pump-reading.webp', 'Example: pump display']])
+      ? [['cng-reading.webp', 'Example: CNG pump screen']]
+      : [['fuel-bill.webp', 'Example: printed fuel bill'], ['pump-reading.webp', 'Example: pump screen']])
     : [['odometer.webp', 'Example: dashboard with ODO reading']];
-  const preview = photo
-    ? `<img src="${photo.url}" alt="${title} photo preview">`
-    : `<div class="photo-examples" data-gallery>${examples.map(([f, alt]) => `<button type="button" data-view aria-label="${alt}, view larger"><img src="assets/samples/${f}" alt="${alt}" loading="lazy"></button>`).join('')}<span class="example-tag">Example${examples.length > 1 ? 's' : ''}</span></div>`;
+  const exampleThumbs = examples.map(([f, alt]) => `<button type="button" data-view aria-label="${alt}, view larger"><img src="assets/samples/${f}" alt="${alt}" loading="lazy"></button>`).join('');
   return `
     <section class="photo-slot${photo ? ' has-photo' : ''}" data-slot="${kind}" aria-labelledby="slot-${kind}">
-      <div class="photo-text">
-        <h2 id="slot-${kind}">${title}</h2>
-        <p class="hint">${help}</p>
-        ${photo ? `<p class="hint">Ready: ${photo.width}×${photo.height}, ${(photo.bytes / 1024).toFixed(0)} KB</p>` : ''}
+      <div class="slot-head">
+        <div>
+          <h2 id="slot-${kind}">${photo ? `${icon('check')} ` : ''}${title}</h2>
+          <p class="hint">${help}</p>
+        </div>
+        ${photo ? '' : `<div class="slot-examples" data-gallery><span>e.g.</span>${exampleThumbs}</div>`}
       </div>
-      <div class="photo-preview">${preview}</div>
+      ${photo ? `<div class="photo-preview"><img src="${photo.url}" alt="${title} photo preview"></div>` : ''}
       <div class="photo-actions">
-        <label class="btn btn-sm file-btn">${icon('camera')}${photo ? 'Retake' : 'Take photo'}
+        <label class="btn btn-sm file-btn btn-camera">${icon('camera')}${photo ? 'Retake' : 'Take photo'}
           <input type="file" accept="image/*" capture="environment" data-pick="${kind}"></label>
-        <label class="btn btn-sm file-btn">${photo ? 'Replace' : 'Upload'}
+        <label class="btn btn-sm file-btn btn-upload">${icon('image')}${photo ? 'Replace' : 'Upload'}
           <input type="file" accept="image/jpeg,image/png,image/webp" data-pick="${kind}"></label>
         ${photo ? `<button class="btn btn-sm btn-quiet" type="button" data-remove="${kind}">Remove</button>` : ''}
       </div>
@@ -107,14 +107,13 @@ function renderCapture(main, vehicles, ctx) {
   slotFuel = vehicles.find((v) => v.id === session.vehicleId)?.fuelType || 'petrol';
   const vehicleOpts = vehicles.map((v) => ({ value: v.id, label: v.nickname, note: [typeLabel(v), v.registration].filter(Boolean).join(', ') }));
   main.innerHTML = `
-    <a class="back" href="#/fuel/new?manual=1&v=${encodeURIComponent(session.vehicleId)}">${icon('back')}Manual entry</a>
     <h1 class="page-title" tabindex="-1">Smart fuel entry</h1>
-    <p class="lead">Add a photo of the fuel receipt, the odometer, or both. You check every value before anything is saved.</p>
+    <p class="lead">Snap your fuel bill and odometer. We fill in the details.</p>
     ${demoNotice()}
     <form class="form smart-capture" novalidate>
       ${choices('vehicleId', 'Vehicle', vehicleOpts, session.vehicleId)}
       <div class="photo-slots">${slotHTML('receipt')}${slotHTML('odometer')}</div>
-      <p class="hint">${esc(providerInfo().privacy)} Photos are shrunk and their hidden location data is removed when you add them.</p>
+      <p class="hint">${providerInfo().isDemo ? 'Demo mode: photos stay on this phone.' : 'Photos are read securely and not stored.'}</p>
       <p class="form-error" role="alert" hidden></p>
       <div class="progress" data-progress hidden></div>
       <div class="form-actions">
@@ -276,39 +275,35 @@ async function renderReview(main, vehicles, ctx) {
       <p>For <strong>${esc(vehicle.nickname)}</strong><br><span class="muted">${vehicleSubtitle(vehicle)}</span></p>
       <div class="thumbs" data-gallery>${thumbs}</div>
     </div>
-    <p class="hint">Check the values against your photos and change anything that is wrong.</p>
+    <p class="hint">Check and correct if needed.</p>
     <section class="checks" data-checks aria-live="polite"></section>
     <form class="form" novalidate>
       <p class="form-error" role="alert" tabindex="-1" hidden></p>
-      <h2 class="form-section">Fill</h2>
-      ${f('date', `<input id="date" name="date" type="date" max="${todayStr()}" value="${val(v.date)}">`, r.billKind === 'pump-display' && !r.transactionDate ? 'A pump display shows no date, so today is filled in. Change it if you filled on another day.' : 'From the bill, not the day you took the photo.')}
+      ${f('date', `<input id="date" name="date" type="date" max="${todayStr()}" value="${val(v.date)}">`, r.billKind === 'pump-display' && !r.transactionDate ? 'Pump screens show no date, so today is filled in.' : '')}
       <div class="grid-3">
         ${f('quantity', textIn('quantity', 12, 'decimal'))}
         ${f('pricePerUnit', textIn('pricePerUnit', 12, 'decimal'))}
         ${f('totalAmount', textIn('totalAmount', 12, 'decimal'))}
       </div>
-      ${choices('fullTank', 'Did you fill the tank to full?', [{ value: 'yes', label: 'Yes, full tank' }, { value: 'no', label: 'No, partial' }], v.fullTank === null ? null : (v.fullTank ? 'yes' : 'no'))}
-      <p class="hint">A receipt cannot show this, so choose one. Mileage is measured between full tanks.</p>
+      ${choices('fullTank', 'Tank filled to full?', [{ value: 'yes', label: 'Yes, full' }, { value: 'no', label: 'No, partial' }], v.fullTank === null ? null : (v.fullTank ? 'yes' : 'no'))}
+      ${f('odometer', textIn('odometer', 10, 'numeric'), 'Total km shown as ODO on the dashboard. Optional, but needed for mileage.')}
 
-      <h2 class="form-section">Odometer</h2>
-      <div class="grid-2">
-        ${f('odometer', textIn('odometer', 10, 'numeric'), 'The ODO number, not the range.')}
-        ${f('dashboardRangeKm', textIn('dashboardRangeKm', 6, 'numeric'), 'Optional. Saved for reference; never used as the odometer.')}
-      </div>
-
-      <h2 class="form-section">Receipt details</h2>
-      <div class="grid-2">
-        ${f('fuelType', `<select id="fuelType" name="fuelType">${fuelOpts.map(([k, l]) => `<option value="${k}"${(v.fuelType || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select>`)}
-        ${f('fuelCompany', textIn('fuelCompany'))}
-      </div>
-      ${f('station', textIn('station'))}
-      ${field('notes', 'Notes', `<textarea id="notes" name="notes" rows="2" maxlength="${LIMITS.notesMax}">${val(v.notes)}</textarea>`)}
+      <details class="optional"${v.fuelCompany || v.station || v.notes ? '' : ''}>
+        <summary>More details (optional)</summary>
+        <div class="grid-2">
+          ${f('fuelType', `<select id="fuelType" name="fuelType">${fuelOpts.map(([k, l]) => `<option value="${k}"${(v.fuelType || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select>`)}
+          ${f('dashboardRangeKm', textIn('dashboardRangeKm', 6, 'numeric'), 'Distance-to-empty shown on the dashboard.')}
+          ${f('fuelCompany', textIn('fuelCompany'))}
+          ${f('station', textIn('station'))}
+        </div>
+        ${field('notes', 'Notes', `<textarea id="notes" name="notes" rows="2" maxlength="${LIMITS.notesMax}">${val(v.notes)}</textarea>`)}
+      </details>
 
       <div class="notice notice-warn" data-warnings role="alert" hidden></div>
       <div class="form-actions form-actions-stack">
         <button class="btn btn-primary btn-block" type="submit" data-save>${icon('check')}Confirm and save</button>
         <div class="split">
-          <button class="btn" type="button" data-retake>${icon('camera')}Retake or replace photos</button>
+          <button class="btn" type="button" data-retake>${icon('camera')}Change photos</button>
           <button class="btn btn-quiet" type="button" data-cancel>Cancel</button>
         </div>
       </div>
@@ -389,7 +384,7 @@ async function renderReview(main, vehicles, ctx) {
     if (Object.keys(errors).length) { showFieldErrors(form, errors); return; }
 
     const entry = { ...d, fullTank: d.fullTank, calculated: [], source: demo ? 'smart-demo' : 'smart' };
-    const { errors: vErrors, warnings } = validateEntry(entry, { vehicle, entries, today: todayStr(), checkDuplicates: false });
+    const { errors: vErrors, warnings } = validateEntry(entry, { vehicle, entries, today: todayStr(), checkDuplicates: false, odometerOptional: true });
     if (!showFieldErrors(form, vErrors)) return;
 
     const dups = findPossibleDuplicates(entry, entries);

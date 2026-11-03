@@ -33,7 +33,7 @@ export function reviewChecks(v, { vehicle, entries = [], today }) {
   if (!isPos(v.quantity)) out.push({ level: 'info', code: 'quantity-missing', message: 'Enter the quantity filled.', fields: ['quantity'] });
   if (!isPos(v.totalAmount)) out.push({ level: 'info', code: 'amount-missing', message: 'Enter the total amount paid.', fields: ['totalAmount'] });
   if (!v.date) out.push({ level: 'info', code: 'date-missing', message: 'Enter the date of the fill.', fields: ['date'] });
-  if (!isPos(v.odometer)) out.push({ level: 'info', code: 'odometer-missing', message: 'Enter the odometer reading. Mileage needs it.', fields: ['odometer'] });
+  if (!isPos(v.odometer)) out.push({ level: 'info', code: 'odometer-missing', message: 'No odometer reading: this fill will count for spend, but not for mileage.', fields: ['odometer'] });
 
   if (v.fuelType && vehicle && v.fuelType !== vehicle.fuelType) {
     const r = FUEL_TYPES[v.fuelType]?.label || v.fuelType;

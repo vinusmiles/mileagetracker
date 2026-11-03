@@ -27,7 +27,7 @@ export function toNum(v) {
 export function sortEntries(entries) {
   return [...entries].sort((a, b) => {
     if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-    if (a.odometer !== b.odometer) return a.odometer - b.odometer;
+    if (a.odometer !== b.odometer) return (a.odometer || 0) - (b.odometer || 0);
     return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
   });
 }
@@ -42,6 +42,7 @@ function buildInterval(rows, s, e) {
     startOdometer: start.odometer, endOdometer: end.odometer,
     fills: span.length,
   };
+  if (!isPos(start.odometer) || !isPos(end.odometer)) return { ...base, valid: false, reason: 'missing-odometer' };
   if (span.some((r) => r.issue)) return { ...base, valid: false, reason: 'odometer-decrease' };
   const distance = end.odometer - start.odometer;
   if (!(distance > 0)) return { ...base, valid: false, reason: 'no-distance' };
@@ -68,14 +69,17 @@ function buildInterval(rows, s, e) {
  */
 export function analyseVehicle(entries, vehicle = null) {
   const sorted = sortEntries(entries);
-  const rows = sorted.map((entry, i) => {
-    const prev = i > 0 ? sorted[i - 1] : null;
+  let lastWithOdo = null; // fills without an odometer reading are skipped for distance
+  const rows = sorted.map((entry) => {
     let distance = null;
     let issue = null;
-    if (prev) {
-      const d = entry.odometer - prev.odometer;
-      if (d < 0) issue = 'odometer-decrease';
-      else distance = d;
+    if (isPos(entry.odometer)) {
+      if (lastWithOdo) {
+        const d = entry.odometer - lastWithOdo.odometer;
+        if (d < 0) issue = 'odometer-decrease';
+        else distance = d;
+      }
+      lastWithOdo = entry;
     }
     return { entry, distance, issue, interval: null };
   });

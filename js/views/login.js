@@ -17,7 +17,7 @@ export async function render(main) {
   main.innerHTML = `
     <div class="login">
       <div class="logo-plate"><img src="assets/logo-full.webp" alt="GaadiKhata: fuel, maintenance, expenses and more" width="320" height="292"></div>
-      <h1 class="page-title" tabindex="-1">Sign in to GaadiKhata</h1>
+      <h1 class="page-title" tabindex="-1">Sign in</h1>
       <p class="lead">Your vehicles and fuel records are saved to your own private account and follow you to any device.</p>
 
       <p class="form-error" role="alert" tabindex="-1" hidden></p>
@@ -52,6 +52,7 @@ export async function render(main) {
         <p class="hint">Firebase runs a hidden security check to block automated sign-ups.</p>` : ''}
 
       <p class="hint login-note">GaadiKhata never sees your Google password and never stores SMS codes. Firebase handles sign-in.</p>
+      <p class="hint login-note">Need help? <a href="https://www.instagram.com/gaadikhata/" target="_blank" rel="noopener">Instagram @gaadikhata</a></p>
       <p class="hint login-note">© 2026 GaadiKhata. All rights reserved.</p>
     </div>`;
 

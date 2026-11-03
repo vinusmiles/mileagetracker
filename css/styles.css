@@ -548,3 +548,29 @@ body.viewer-open { overflow: hidden; }
 .login .page-title { text-align: center; }
 .login .lead { text-align: center; }
 body.signed-out .topbar-gear { display: none; }
+
+/* Sign-in: logo sized to support the page, not dominate it */
+.login .logo-plate { width: min(62vw, 210px); padding: .35rem; border-radius: 14px; }
+.login { gap: .9rem; margin-top: .5rem; }
+@media (min-width: 900px) { .login { margin-top: 3rem; } }
+
+/* No grey tap flash on phones; a gentle press effect instead */
+a, button, label, summary { -webkit-tap-highlight-color: transparent; }
+.nav a:active .icon, .btn:active { transform: scale(.96); }
+.nav a.nav-add .icon { box-shadow: 0 0 0 4px var(--surface); }
+.nav a:focus:not(:focus-visible) { outline: none; }
+
+/* Smart entry: compact photo slots */
+.slot-head { display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem; }
+.slot-head h2 { display: flex; align-items: center; gap: .3rem; }
+.slot-head h2 .icon { width: 20px; height: 20px; color: var(--green); }
+.slot-examples { display: flex; align-items: center; gap: .35rem; flex: none; }
+.slot-examples span { font-size: .75rem; color: var(--muted); }
+.slot-examples button { padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; cursor: zoom-in; overflow: hidden; width: 44px; height: 44px; }
+.slot-examples img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.btn-camera { background: var(--green); border-color: var(--green); color: var(--on-green); }
+.btn-camera:hover { background: var(--green-hover); color: var(--on-green); border-color: var(--green-hover); }
+.btn-upload { background: var(--amber-soft); border-color: var(--amber); color: var(--amber-ink); }
+.btn-upload:hover { border-color: var(--amber-ink); color: var(--amber-ink); }
+.photo-actions .btn { flex: 1 1 8rem; min-height: 46px; }
+.photo-slot .photo-preview { height: 150px; }

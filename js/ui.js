@@ -19,6 +19,8 @@ const ICONS = {
   receipt: '<path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   scan: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M7 12h10"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  image: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-8.5 8"/>',
+  instagram: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r=".8"/>',
   info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><circle cx="12" cy="8" r=".6"/>',
   back: '<path d="M15 5l-7 7 7 7"/>',
   warn: '<path d="M12 4l9 16H3z"/><path d="M12 10v4"/><circle cx="12" cy="17" r=".6"/>',
@@ -49,7 +51,7 @@ export function mileageHint(summary) {
     case 'no-entries': return 'Add your first fuel entry to start tracking.';
     case 'need-full-tank': return 'Fill the tank to full and mark the entry as a full tank to start measuring mileage.';
     case 'need-next-full': return 'Add your next full-tank entry to calculate mileage.';
-    case 'check-readings': return 'Some odometer readings go backwards. Check the flagged entries in History.';
+    case 'check-readings': return 'Mileage needs full-tank fills with odometer readings. Some are missing or go backwards; check History.';
     default: return '';
   }
 }

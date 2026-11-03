@@ -2,7 +2,7 @@
 
 import * as store from '../store.js';
 import * as auth from '../auth.js';
-import { toast, confirmDialog, esc } from '../ui.js';
+import { toast, confirmDialog, esc, icon } from '../ui.js';
 import { localDataToImport, importLocalData } from '../sync.js';
 
 export async function render(main, { refresh }) {
@@ -51,8 +51,14 @@ export async function render(main, { refresh }) {
     </section>
 
     <section class="block">
+      <h2>Contact us</h2>
+      <p>Questions, ideas or a bill that was read wrongly? Message us on Instagram.</p>
+      <a class="btn" href="https://www.instagram.com/gaadikhata/" target="_blank" rel="noopener">${icon('instagram')}@gaadikhata</a>
+    </section>
+
+    <section class="block">
       <h2>About</h2>
-      <p>GaadiKhata, version 0.9.2.1.</p>
+      <p>GaadiKhata, version 0.9.3.1.</p>
       <p class="muted">© 2026 GaadiKhata. All rights reserved.</p>
     </section>`;
 

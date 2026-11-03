@@ -31,7 +31,7 @@ export function validateVehicle(v) {
  *                 checkDuplicates: false when the caller warns about duplicates itself }
  * @returns      { errors: { field: message }, warnings: [{ code, ... }] }
  */
-export function validateEntry(entry, { vehicle, entries = [], today, checkDuplicates = true }) {
+export function validateEntry(entry, { vehicle, entries = [], today, checkDuplicates = true, odometerOptional = false }) {
   const errors = {};
   const warnings = [];
 
@@ -56,8 +56,7 @@ export function validateEntry(entry, { vehicle, entries = [], today, checkDuplic
   else if (t > LIMITS.amountMax) errors.totalAmount = 'That amount is too large.';
 
   const o = entry.odometer;
-  if (o === null || o === undefined) errors.odometer = 'Enter the odometer reading.';
-  else if (!isPos(o)) errors.odometer = 'Odometer reading must be more than 0 km.';
+  if (o === null || o === undefined) { if (!odometerOptional) errors.odometer = 'Enter the odometer reading.'; } else if (!isPos(o)) errors.odometer = 'Odometer reading must be more than 0 km.';
   else if (o > LIMITS.odometerMax) errors.odometer = 'That reading is too large.';
 
   if ((entry.station || '').length > LIMITS.textMax) errors.station = `Keep this under ${LIMITS.textMax} characters.`;
@@ -77,12 +76,13 @@ export function validateEntry(entry, { vehicle, entries = [], today, checkDuplic
   const after = others.filter((e) => e.date > entry.date);
   const prev = before[before.length - 1];
   const next = after[0];
-  if (prev && o < prev.odometer) {
+  const hasOdo = isPos(o);
+  if (hasOdo && prev && isPos(prev.odometer) && o < prev.odometer) {
     warnings.push({ code: 'odometer-lower', previous: prev });
-  } else if (!prev && vehicle && Number.isFinite(vehicle.initialOdometer) && o < vehicle.initialOdometer) {
+  } else if (hasOdo && !prev && vehicle && Number.isFinite(vehicle.initialOdometer) && o < vehicle.initialOdometer) {
     warnings.push({ code: 'below-initial', initial: vehicle.initialOdometer });
   }
-  if (next && o > next.odometer) warnings.push({ code: 'odometer-higher', next });
+  if (hasOdo && next && isPos(next.odometer) && o > next.odometer) warnings.push({ code: 'odometer-higher', next });
   if (amountsMismatch(q, p, t)) warnings.push({ code: 'amount-mismatch' });
 
   return { errors, warnings };
