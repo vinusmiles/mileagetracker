@@ -1,7 +1,7 @@
 // My vehicles: list, add, edit, delete.
 
 import * as store from '../store.js';
-import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog } from '../ui.js';
+import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req } from '../ui.js';
 import { VEHICLE_TYPES, FUEL_TYPES, LIMITS } from '../core/model.js';
 import { validateVehicle } from '../core/validate.js';
 import { toNum } from '../core/calc.js';
@@ -24,7 +24,8 @@ export async function renderList(main) {
     const s = analyses.get(v.id).summary;
     const id = encodeURIComponent(v.id);
     return `
-      <li class="vcard">
+      <li class="vcard vcard-tap">
+        <a class="vtile-link" href="#/?v=${id}" aria-label="${esc(v.nickname)} details"></a>
         <div class="vcard-head">
           <span class="vrow-icon">${icon(v.type)}</span>
           <div>
@@ -32,16 +33,10 @@ export async function renderList(main) {
             <p class="vrow-sub">${vehicleSubtitle(v)}</p>
           </div>
         </div>
-        <dl class="facts facts-tight">
-          <div><dt>Odometer</dt><dd>${fmt.km(s.latestOdometer)}</dd></div>
-          <div><dt>Fuel fills</dt><dd>${s.entryCount}</dd></div>
-          <div><dt>Added on</dt><dd>${fmt.date(v.createdAt.slice(0, 10))}</dd></div>
-        </dl>
-        <div class="actions actions-tight">
-          <a class="btn btn-primary btn-sm" href="#/fuel/new?v=${id}">${icon('fuel')}Add fuel</a>
-          <a class="btn btn-sm" href="#/service/add?v=${id}">${icon('wrench')}Add service</a>
-          <a class="btn btn-sm" href="#/?v=${id}">Details</a>
-          <a class="btn btn-quiet btn-sm" href="#/vehicles/${id}/edit">Edit</a>
+        <p class="vcard-meta">${fmt.km(s.latestOdometer)} · ${s.entryCount} ${s.entryCount === 1 ? 'fill' : 'fills'}</p>
+        <div class="actions actions-tight vcard-actions">
+          <a class="btn btn-primary btn-sm" href="#/fuel/new?v=${id}">${icon('plus')}Fuel</a>
+          <a class="btn btn-sm" href="#/service/add?v=${id}">${icon('plus')}Service</a>
         </div>
       </li>`;
   }).join('');
@@ -71,9 +66,9 @@ export async function renderForm(main, { params, navigate }) {
     <h1 class="page-title" tabindex="-1">${editing ? 'Edit vehicle' : 'Add a vehicle'}</h1>
     <form class="form" novalidate>
       <p class="form-error" role="alert" hidden></p>
-      ${field('nickname', 'Name', `<input id="nickname" name="nickname" type="text" maxlength="${LIMITS.nicknameMax}" autocomplete="off" required value="${esc(v.nickname)}" placeholder="My bike">`)}
-      ${choices('type', 'Vehicle type', typeOptions, v.type)}
-      ${choices('fuelType', 'Fuel', fuelOptions, v.fuelType)}
+      ${field('nickname', req('Name'), `<input id="nickname" name="nickname" type="text" maxlength="${LIMITS.nicknameMax}" autocomplete="off" required value="${esc(v.nickname)}" placeholder="My bike">`)}
+      ${choices('type', req('Vehicle type'), typeOptions, v.type)}
+      ${choices('fuelType', req('Fuel'), fuelOptions, v.fuelType)}
       ${field('initialOdometer', 'Odometer reading (km, optional)', `<input id="initialOdometer" name="initialOdometer" type="text" inputmode="numeric" autocomplete="off" value="${esc(v.initialOdometer ?? '')}" placeholder="12500">`, 'Optional. Your first fuel or service entry records the odometer anyway.')}
       <details class="optional"${v.make || v.model || v.registration ? ' open' : ''}>
         <summary>Make, model and registration (optional)</summary>

@@ -75,3 +75,29 @@ export function entryRow(row, vehicle, { showVehicle = false } = {}) {
 }
 
 export const calcLegend = '<p class="legend"><span class="calc">Underlined values</span> are calculated by GaadiKhata. Everything else is what you recorded.</p>';
+
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * A compact, tappable fill row: date badge · vehicle and quantity · amount and mileage.
+ * `row` comes from analyseVehicle().rows.
+ */
+export function compactRow(row, vehicle, { showVehicle = true } = {}) {
+  const e = row.entry;
+  const unit = e.unit || fuelUnit(vehicle?.fuelType);
+  const [, m, d] = e.date.split('-');
+  const iv = row.interval;
+  const title = showVehicle && vehicle ? esc(vehicle.nickname) : `${fmt.qty(e.quantity, unit)}${e.fullTank ? ' · Full tank' : ''}`;
+  const sub = [
+    showVehicle ? `${fmt.qty(e.quantity, unit)}${e.fullTank ? ' · Full' : ''}` : '',
+    e.odometer ? fmt.km(e.odometer) : 'No odometer',
+    row.distance ? `+${fmt.kmNumber(row.distance)} km` : '',
+  ].filter(Boolean).join(' · ');
+  return `
+    <li><a class="row-link" href="#/fuel/${encodeURIComponent(e.id)}/edit" aria-label="Fill on ${esc(fmt.date(e.date))}${vehicle ? `, ${esc(vehicle.nickname)}` : ''}, ${esc(fmt.moneyExact(e.totalAmount))}">
+      <span class="row-date"><b>${d}</b><span>${MON[Number(m) - 1]}</span></span>
+      <span class="row-title">${title}</span>
+      <span class="row-amt"><b>${fmt.money(e.totalAmount)}</b>${iv?.valid ? `<span class="chip">${fmt.mileage(iv.mileage, unit).replace(' ', '\u00a0')}</span>` : ''}</span>
+      <span class="row-sub">${row.issue ? '<span class="row-flag">Check odometer · </span>' : ''}${sub}</span>
+    </a></li>`;
+}

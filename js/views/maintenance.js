@@ -3,7 +3,7 @@
 // in fuel mileage calculations; their odometer readings only join the timeline.
 
 import * as store from '../store.js';
-import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog } from '../ui.js';
+import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req } from '../ui.js';
 import { SERVICE_TYPES, ITEM_KINDS, SUMMARY_FIELDS, itemTotals, reconcile, serviceCost, findServiceDuplicates, odometerTimeline, checkServiceOdometer, cleanItems } from '../core/service.js';
 import { toNum } from '../core/calc.js';
 import { todayStr, isValidDateStr } from '../core/dates.js';
@@ -67,16 +67,19 @@ export async function renderHistory(main, { query, navigate }) {
       <a class="btn" href="#/service/new?v=${enc(v.id)}">${icon('plus')}Add manually</a>
     </div>
     ${all.length ? `
+      <details class="filter-box"${f.year || f.type || f.centre ? ' open' : ''}>
+      <summary>Filter <span>${esc([f.year || 'All years', f.type ? SERVICE_TYPES[f.type] : 'All types'].join(' · '))}</span></summary>
       <form class="filters" aria-label="Filter services">
         <div class="field"><label for="f-year">Year</label><select id="f-year" name="year">${opt('', 'All years', f.year)}${years.map((y) => opt(y, y, f.year)).join('')}</select></div>
         <div class="field"><label for="f-type">Service type</label><select id="f-type" name="type">${opt('', 'All types', f.type)}${Object.entries(SERVICE_TYPES).map(([k, l]) => opt(k, l, f.type)).join('')}</select></div>
         ${centres.length > 1 ? `<div class="field"><label for="f-centre">Service centre</label><select id="f-centre" name="centre">${opt('', 'All centres', f.centre)}${centres.map((c) => opt(c, c, f.centre)).join('')}</select></div>` : ''}
       </form>
-      <p class="muted">${list.length} ${list.length === 1 ? 'service' : 'services'}, ${fmt.money(total)} in total.</p>
+      </details>
+      <div class="summary-bar"><div><b>${fmt.money(total)}</b> <span>spent</span></div><div><b>${list.length}</b> <span>${list.length === 1 ? 'service' : 'services'}</span></div></div>
       ${list.length ? `<ul class="svc-list">${cards}</ul>` : '<p class="muted">No services match these filters.</p>'}`
     : emptyState({ title: 'No service records yet', text: 'Scan a service invoice (all its pages together) or add a service manually. Records stay separate from fuel and mileage.' })}`;
 
-  main.querySelector('.filters')?.addEventListener('change', (ev) => {
+  main.querySelector('.filter-box .filters')?.addEventListener('change', (ev) => {
     const q = new URLSearchParams({ v: v.id });
     for (const [k, val] of new FormData(ev.currentTarget).entries()) if (val) q.set(k, val);
     navigate(`/maintenance?${q}`, { replace: true, keepFocus: true });
@@ -334,7 +337,7 @@ export async function renderEdit(main, ctx) {
 // The shared form (manual, edit, and review after reading an invoice)
 // ---------------------------------------------------------------------------
 
-const DETAIL_LABELS = { serviceDate: 'Invoice / service date', jobCardDate: 'Job card date', invoiceNumber: 'Invoice number', jobCardNumber: 'Job card number', serviceCentre: 'Service centre', serviceCentreLocation: 'Location', paymentMethod: 'Payment method', warranty: 'Warranty status', serviceType: 'Service type', odometerKm: 'Odometer (km)' };
+const DETAIL_LABELS = { serviceDate: req('Service date'), jobCardDate: 'Job card date', invoiceNumber: 'Invoice number', jobCardNumber: 'Job card number', serviceCentre: 'Service centre', serviceCentreLocation: 'Location', paymentMethod: 'Payment method', warranty: 'Warranty status', serviceType: 'Service type', odometerKm: 'Odometer (km)' };
 const ITEM_NUMS = [['qty', 'Qty'], ['rate', 'Rate (₹)']];
 // Shown on the entry form. Taxes and other summary values that were read are kept with the
 // record (and shown on the details page) but not edited here, to keep the form short.
@@ -408,7 +411,6 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
     <section class="checks" data-checks aria-live="polite"></section>
     <form class="form svc-form" novalidate>
       <p class="form-error" role="alert" tabindex="-1" hidden></p>
-      <h2 class="form-section">Vehicle</h2>
       ${mode === 'manual' && vehicles.length > 1
         ? choices('vehicleId', 'Vehicle', vehicles.map((v) => ({ value: v.id, label: v.nickname })), vehicle.id)
         : `<p><strong>${esc(vehicle.nickname)}</strong><br><span class="muted">${[typeLabel(vehicle), vehicleLine(vehicle)].filter(Boolean).join(', ')}</span></p>`}
@@ -419,7 +421,6 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
         ${f('serviceDate', `<input id="serviceDate" name="serviceDate" type="date" max="${todayStr()}" value="${val(record.serviceDate)}">`, review ? 'The invoice date, not the job card date.' : '')}
         ${f('serviceType', `<select id="serviceType" name="serviceType">${Object.entries(SERVICE_TYPES).map(([k, l]) => `<option value="${k}"${(record.serviceType || 'other') === k ? ' selected' : ''}>${l}</option>`).join('')}</select>`)}
         ${f('serviceCentre', textIn('serviceCentre'))}
-        ${f('serviceCentreLocation', textIn('serviceCentreLocation'))}
       </div>
 
       <h2 class="form-section">Odometer</h2>
@@ -427,16 +428,16 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
 
       <div data-items>${groupHTML()}</div>
 
-      <h2 class="form-section">Financial breakdown</h2>
-      <div class="grid-2">
-        ${FORM_SUMMARY.map((k) => [k, SUMMARY_FIELDS[k]]).map(([k, l]) => {
-          const name = `summary.${k}`;
-          let html = field(`sum-${k}`, `${l}${k === 'grandTotal' ? '' : ' (optional)'}`, `<input id="sum-${k}" name="sum-${k}" type="text" inputmode="decimal" autocomplete="off" value="${val(s[k])}">`, hint(name));
-          if (flagged(name)) html = html.replace(`class="field" data-field="sum-${k}"`, `class="field needs-review" data-field="sum-${k}"`);
-          return html;
-        }).join('')}
-      </div>
-      ${field('notes', 'Notes', `<textarea id="notes" name="notes" rows="2" maxlength="500">${val(record.notes)}</textarea>`)}
+      <h2 class="form-section">Total</h2>
+      ${field('sum-grandTotal', req('Grand total paid (₹)'), `<input id="sum-grandTotal" name="sum-grandTotal" type="text" inputmode="decimal" autocomplete="off" value="${val(s.grandTotal)}">`)}
+      <details class="optional">
+        <summary>More details (optional)</summary>
+        <div class="grid-2">
+          ${f('serviceCentreLocation', textIn('serviceCentreLocation'))}
+          ${FORM_SUMMARY.filter((k) => k !== 'grandTotal').map((k) => field(`sum-${k}`, SUMMARY_FIELDS[k], `<input id="sum-${k}" name="sum-${k}" type="text" inputmode="decimal" autocomplete="off" value="${val(s[k])}">`)).join('')}
+        </div>
+        ${field('notes', 'Notes', `<textarea id="notes" name="notes" rows="2" maxlength="500">${val(record.notes)}</textarea>`)}
+      </details>
 
       ${thumbs ? `<h2 class="form-section">Invoice pages</h2>${thumbs}<p class="hint">${store.canKeepImages() ? 'These pages will be kept with the record in your private account.' : 'Pages are not kept in this-device mode.'}</p>` : ''}
 
@@ -476,15 +477,16 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
     };
   };
 
+  let touched = review; // on a fresh manual form, hold back reminders until the user starts typing
   const paintChecks = () => {
     const d = collect();
-    const list = reconcile({ ...d, items: cleanItems(d.items) });
+    const list = reconcile({ ...d, items: cleanItems(d.items) }).filter((c) => touched || c.level !== 'info');
     for (const w of checkServiceOdometer(d, timeline)) {
       list.push({ level: 'warn', message: w.code === 'lower-than-before'
         ? `The odometer is lower than an earlier reading (${fmt.km(w.reading.km)} on ${fmt.date(w.reading.date)}, ${w.reading.source === 'fuel' ? 'fuel fill' : 'service'}).`
         : `The odometer is higher than a later reading (${fmt.km(w.reading.km)} on ${fmt.date(w.reading.date)}).` });
     }
-    if (!d.odometerKm) list.push({ level: 'info', message: 'No odometer reading. Add it if the invoice shows one (often “Kms”).' });
+    if (!d.odometerKm && touched) list.push({ level: 'info', message: 'No odometer reading. Add it if the invoice shows one (often “Kms”).' });
     checksBox.innerHTML = list.length ? `<ul>${list.map((c) => `<li class="check check-${c.level}">${icon(c.level === 'ok' ? 'check' : c.level === 'warn' ? 'warn' : 'info')}<span>${esc(c.message)}</span></li>`).join('')}</ul>` : '';
     return list;
   };
@@ -493,6 +495,7 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
   const resetWarn = () => { accepted = false; warnBox.hidden = true; saveBtn.innerHTML = saveLabel; };
 
   form.addEventListener('input', (ev) => {
+    touched = true;
     const row = ev.target.closest('.item-row');
     if (row && ev.target.dataset.k) {
       const it = items[Number(row.dataset.idx)];

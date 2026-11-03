@@ -18,6 +18,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | Maintenance Stage 2: real invoice reading (Worker 0.5.0, route `/extract-invoice`) | ✅ Built (v0.7), to verify on the Nexon invoice |
 | v0.8: GaadiKhata name, Add service on vehicles, pump-display photos, example photos, no "Looks right" prompts, 22-Oct-2026 dates | ✅ Built |
 | v0.9: CNG vehicles (kg, ₹/kg, km/kg), CNG dispenser photos, optional vehicle odometer, in-app photo viewer | ✅ Built |
+| v1.0: redesign (green app header, month-first dashboard, vehicle tiles, compact fill rows, collapsible filters, required ✱ marks, simpler service form) | ✅ Built |
 | Maintenance Stage 3–4: analytics, reminders, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |

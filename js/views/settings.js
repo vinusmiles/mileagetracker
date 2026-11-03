@@ -24,6 +24,12 @@ export async function render(main, { refresh }) {
     </section>
 
     <section class="block">
+      <h2>Contact us</h2>
+      <p>Questions, ideas or a bill that was read wrongly? Message us on Instagram.</p>
+      <a class="btn" href="https://www.instagram.com/gaadikhata/" target="_blank" rel="noopener">${icon('instagram')}@gaadikhata</a>
+    </section>
+
+    <section class="block">
       <h2>Your data</h2>
       <p>${cloud
         ? 'Saved to your private cloud account. Only you can read it. A copy is kept in this browser so the app opens quickly and works with a weak signal; signing out removes it.'
@@ -44,22 +50,16 @@ export async function render(main, { refresh }) {
            <button class="btn" type="button" data-action="load-demo">Add sample data</button>`}
     </section>
 
+    <section class="block">
+      <h2>About</h2>
+      <p>GaadiKhata, version 1.0.1.</p>
+      <p class="muted">© 2026 GaadiKhata. All rights reserved.</p>
+    </section>
+
     <section class="danger">
       <h2>Delete all data</h2>
       <p>Removes every vehicle and fuel entry ${cloud ? 'from your account' : 'from this device'}. It cannot be undone.</p>
       <button class="btn btn-danger" type="button" data-action="delete-all"${vehicles.length ? '' : ' disabled'}>Delete all data</button>
-    </section>
-
-    <section class="block">
-      <h2>Contact us</h2>
-      <p>Questions, ideas or a bill that was read wrongly? Message us on Instagram.</p>
-      <a class="btn" href="https://www.instagram.com/gaadikhata/" target="_blank" rel="noopener">${icon('instagram')}@gaadikhata</a>
-    </section>
-
-    <section class="block">
-      <h2>About</h2>
-      <p>GaadiKhata, version 0.9.3.1.</p>
-      <p class="muted">© 2026 GaadiKhata. All rights reserved.</p>
     </section>`;
 
   main.querySelector('[data-action="sign-out"]')?.addEventListener('click', async (ev) => {

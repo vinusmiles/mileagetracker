@@ -61,9 +61,10 @@ async function renderBanner() {
     parts.push(`This device has ${local.vehicles.length} ${local.vehicles.length === 1 ? 'vehicle' : 'vehicles'} and ${local.entries.length} fuel entries saved before you signed in.
       <span class="banner-actions"><button type="button" class="btn btn-sm btn-primary" data-import>Copy to my account</button><button type="button" class="btn btn-sm btn-quiet" data-import-skip>Not now</button></span>`);
   }
-  if (await store.hasDemoData()) parts.push('You are looking at sample data. <a href="#/settings">Remove it in Settings</a> when you are ready to add your own.');
+  if (await store.hasDemoData()) parts.push('Showing sample data. <a href="#/settings">Remove it in Settings</a>');
   box.innerHTML = parts.map((p) => `<p>${p}</p>`).join('');
   box.hidden = !parts.length;
+  document.body.classList.toggle('has-banner', parts.length > 0);
   box.querySelector('[data-import]')?.addEventListener('click', async (ev) => {
     ev.target.disabled = true;
     try { await importLocalData(); } catch (err) { toast(err.message, 'error'); }

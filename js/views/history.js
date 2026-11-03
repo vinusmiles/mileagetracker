@@ -6,7 +6,7 @@ import { esc, fmt, icon, emptyState } from '../ui.js';
 import { todayStr, monthKey, monthRange, isValidDateStr } from '../core/dates.js';
 import { totals, averageMileage, costPerKm } from '../core/calc.js';
 import { fuelUnit } from '../core/model.js';
-import { analyseAll, entryRow, monthlySpendChart, calcLegend } from './shared.js';
+import { analyseAll, compactRow, monthlySpendChart } from './shared.js';
 
 export async function render(main, { query, navigate }) {
   const [vehicles, entries] = await Promise.all([store.listVehicles(), store.listEntries()]);
@@ -56,15 +56,13 @@ export async function render(main, { query, navigate }) {
   const units = new Set(scope.map((v) => fuelUnit(v.fuelType)));
   const unit = units.size === 1 ? [...units][0] : '';
 
-  let mileageFacts;
+  let mileageBits = '';
   if (vId) {
     const intervals = analyses.get(vId).intervals.filter((iv) => iv.valid && inPeriod(iv.endDate));
-    mileageFacts = `
-      <div><dt>Average mileage</dt><dd class="calc">${fmt.mileage(averageMileage(intervals), unit)}</dd></div>
-      <div><dt>Fuel cost per km</dt><dd class="calc">${fmt.perKm(costPerKm(intervals))}</dd></div>`;
-    if (!intervals.length) mileageFacts += `<p class="facts-note">Mileage needs two full-tank fills inside this period.</p>`;
-  } else {
-    mileageFacts = `<p class="facts-note">Choose one vehicle to see its average mileage and fuel cost per km.</p>`;
+    const avg = averageMileage(intervals);
+    const cpk = costPerKm(intervals);
+    if (avg !== null) mileageBits += `<div><b>${fmt.mileage(avg, unit)}</b> <span>average</span></div>`;
+    if (cpk !== null) mileageBits += `<div><b>${fmt.perKm(cpk)}</b></div>`;
   }
 
   // Group the list by month, newest first, with a subtotal per month.
@@ -77,43 +75,47 @@ export async function render(main, { query, navigate }) {
   const list = groups.map((g) => `
     <section class="month-group">
       <h3 class="month-head"><span>${fmt.month(g.key, true)}</span><span>${fmt.money(totals(g.rows.map((r) => r.entry)).amount)}</span></h3>
-      <ul class="entries">${g.rows.map((r) => entryRow(r, byId.get(r.entry.vehicleId), { showVehicle: !vId })).join('')}</ul>
+      <ul class="rows">${g.rows.map((r) => compactRow(r, byId.get(r.entry.vehicleId), { showVehicle: !vId })).join('')}</ul>
     </section>`).join('');
 
   const chartEnd = rTo && rTo < today ? rTo : today;
   const chartEntries = entries.filter((e) => !vId || e.vehicleId === vId);
   const opt = (value, label, current) => `<option value="${esc(value)}"${value === current ? ' selected' : ''}>${esc(label)}</option>`;
 
+  const filterLabel = [vId ? byId.get(vId).nickname : 'All vehicles', { all: 'All time', month: fmt.month(month, true), year, range: 'Date range' }[period]].join(' · ');
+  const filtersOpen = [...query.keys()].some((k) => k !== 'v') || query.has('open');
   main.innerHTML = `
     <h1 class="page-title" tabindex="-1">History</h1>
-    <form class="filters" aria-label="Filter history">
-      <div class="field"><label for="f-v">Vehicle</label>
-        <select id="f-v" name="v">${opt('', 'All vehicles', vId)}${vehicles.map((v) => opt(v.id, v.nickname, vId)).join('')}</select></div>
-      <div class="field"><label for="f-period">Period</label>
-        <select id="f-period" name="period">${opt('all', 'All time', period)}${opt('month', 'Month', period)}${opt('year', 'Year', period)}${opt('range', 'Date range', period)}</select></div>
-      ${period === 'month' ? `<div class="field"><label for="f-month">Month</label><select id="f-month" name="month">${months.map((m) => opt(m, fmt.month(m, true), month)).join('')}</select></div>` : ''}
-      ${period === 'year' ? `<div class="field"><label for="f-year">Year</label><select id="f-year" name="year">${years.map((y) => opt(y, y, year)).join('')}</select></div>` : ''}
-      ${period === 'range' ? `
-        <div class="field"><label for="f-from">From</label><input id="f-from" name="from" type="date" max="${today}" value="${esc(from)}"></div>
-        <div class="field"><label for="f-to">To</label><input id="f-to" name="to" type="date" max="${today}" value="${esc(to)}"></div>` : ''}
-    </form>
+    <details class="filter-box"${filtersOpen ? ' open' : ''}>
+      <summary>Filter <span>${esc(filterLabel)}</span></summary>
+      <form class="filters" aria-label="Filter history">
+        <div class="field"><label for="f-v">Vehicle</label>
+          <select id="f-v" name="v">${opt('', 'All vehicles', vId)}${vehicles.map((v) => opt(v.id, v.nickname, vId)).join('')}</select></div>
+        <div class="field"><label for="f-period">Period</label>
+          <select id="f-period" name="period">${opt('all', 'All time', period)}${opt('month', 'Month', period)}${opt('year', 'Year', period)}${opt('range', 'Date range', period)}</select></div>
+        ${period === 'month' ? `<div class="field"><label for="f-month">Month</label><select id="f-month" name="month">${months.map((m) => opt(m, fmt.month(m, true), month)).join('')}</select></div>` : ''}
+        ${period === 'year' ? `<div class="field"><label for="f-year">Year</label><select id="f-year" name="year">${years.map((y) => opt(y, y, year)).join('')}</select></div>` : ''}
+        ${period === 'range' ? `
+          <div class="field"><label for="f-from">From</label><input id="f-from" name="from" type="date" max="${today}" value="${esc(from)}"></div>
+          <div class="field"><label for="f-to">To</label><input id="f-to" name="to" type="date" max="${today}" value="${esc(to)}"></div>` : ''}
+      </form>
+    </details>
     ${rangeError ? `<p class="notice notice-warn" role="alert">${icon('warn')}${rangeError}</p>` : ''}
 
-    <dl class="facts">
-      <div><dt>Total spent</dt><dd>${fmt.money(t.amount)}</dd></div>
-      <div><dt>Fuel bought</dt><dd>${unit ? fmt.qty(t.quantity, unit) : '–'}</dd></div>
-      <div><dt>Fills</dt><dd>${t.count}</dd></div>
-      ${mileageFacts}
-    </dl>
+    <div class="summary-bar">
+      <div><b>${fmt.money(t.amount)}</b> <span>spent</span></div>
+      ${unit ? `<div><b>${fmt.qty(t.quantity, unit)}</b></div>` : ''}
+      <div><b>${t.count}</b> <span>${t.count === 1 ? 'fill' : 'fills'}</span></div>
+      ${mileageBits}
+    </div>
 
     <section class="block">
-      <h2>Fuel spend by month</h2>
-      ${monthlySpendChart(chartEntries, chartEnd, 12)}
+      ${rows.length ? list : '<p class="muted">No fills in this period.</p>'}
     </section>
 
     <section class="block">
-      <h2>Fills</h2>
-      ${rows.length ? `${calcLegend}${list}` : '<p class="muted">No fills in this period.</p>'}
+      <div class="section-head"><h2>Monthly fuel spend</h2></div>
+      ${monthlySpendChart(chartEntries, chartEnd, 12)}
     </section>`;
 
   const form = main.querySelector('.filters');
@@ -121,6 +123,7 @@ export async function render(main, { query, navigate }) {
     const fd = new FormData(form);
     const q = new URLSearchParams();
     for (const [k, val] of fd.entries()) if (val) q.set(k, val);
+    q.set('open', '1');
     navigate(`/history?${q}`, { replace: true, keepFocus: true });
   });
 }

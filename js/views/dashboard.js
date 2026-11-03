@@ -5,7 +5,7 @@ import { esc, fmt, icon, odometer, mileageHint, emptyState, toast } from '../ui.
 import { todayStr, monthKey, monthRange } from '../core/dates.js';
 import { inRange, totals } from '../core/calc.js';
 import { fuelUnit } from '../core/model.js';
-import { analyseAll, monthlySpendChart, entryRow, vehicleSubtitle, sampleTag, calcLegend } from './shared.js';
+import { analyseAll, monthlySpendChart, entryRow, compactRow, vehicleSubtitle, sampleTag, calcLegend } from './shared.js';
 
 const newestFirst = (a, b) => b.entry.date.localeCompare(a.entry.date)
   || (b.entry.odometer - a.entry.odometer)
@@ -49,51 +49,65 @@ function renderOverview(main, vehicles, entries, analyses) {
   const unit = units.size === 1 ? [...units][0] : '';
   const byId = new Map(vehicles.map((v) => [v.id, v]));
 
-  const vehicleRows = vehicles.map((v) => {
+  // Last month, for comparison
+  const [y, m] = today.split('-').map(Number);
+  const prevKey = `${m === 1 ? y - 1 : y}-${String(m === 1 ? 12 : m - 1).padStart(2, '0')}`;
+  const prev = totals(inRange(entries, monthRange(prevKey).from, monthRange(prevKey).to));
+  let delta = '';
+  if (prev.amount > 0 && month.amount > 0) {
+    const diff = month.amount - prev.amount;
+    delta = `<span class="delta">${diff >= 0 ? '▲' : '▼'} ${fmt.money(Math.abs(diff))} vs ${fmt.month(prevKey)}</span>`;
+  } else if (prev.amount > 0) {
+    delta = `<span class="delta">${fmt.month(prevKey)}: ${fmt.money(prev.amount)}</span>`;
+  }
+  const sub = month.count
+    ? `${month.count} ${month.count === 1 ? 'fill' : 'fills'}${unit ? ` · ${fmt.qty(month.quantity, unit)}` : ''}`
+    : 'No fills yet this month';
+
+  const tiles = vehicles.map((v) => {
     const s = analyses.get(v.id).summary;
     const u = fuelUnit(v.fuelType);
-    const reading = s.latestMileage !== null
-      ? `<div class="vrow-mileage">${odometer(s.latestMileage, { unit: `km/${u}`, label: `Latest mileage ${fmt.mileage(s.latestMileage, u)}` })}<span class="vrow-cap">Latest mileage</span></div>`
-      : `<p class="vrow-hint">${esc(mileageHint(s))}</p>`;
+    const last = s.lastEntry ? `Last fill ${fmt.date(s.lastEntry.date)}` : 'No fills yet';
+    const right = s.latestMileage !== null
+      ? `<span class="vtile-mileage"><b>${s.latestMileage.toFixed(1)}</b><small>km/${u}</small></span>`
+      : `<span class="vtile-hint">Mileage after 2 full-tank fills</span>`;
     return `
-      <li class="vrow">
-        <a href="#/?v=${encodeURIComponent(v.id)}" class="vrow-link">
-          <span class="vrow-icon">${icon(v.type)}</span>
-          <span class="vrow-name">${esc(v.nickname)} ${sampleTag(v)}</span>
-          <span class="vrow-sub">${vehicleSubtitle(v)}</span>
-          ${reading}
-          <span class="vrow-odo">Odometer ${fmt.km(s.latestOdometer)}</span>
-        </a>
+      <li class="vtile">
+        <a class="vtile-link" href="#/?v=${encodeURIComponent(v.id)}" aria-label="${esc(v.nickname)} details"></a>
+        <span class="vrow-icon">${icon(v.type)}</span>
+        <span class="vtile-name">${esc(v.nickname)} ${sampleTag(v)}</span>
+        ${right}
+        <span class="vtile-meta">${last}${s.latestOdometer ? ` · ${fmt.km(s.latestOdometer)}` : ''}</span>
       </li>`;
   }).join('');
 
-  const recentRows = [...analyses.values()].flatMap((a) => a.rows)
+  const recent = [...analyses.values()].flatMap((a) => a.rows)
     .sort(newestFirst)
-    .slice(0, 5)
-    .map((r) => entryRow(r, byId.get(r.entry.vehicleId), { showVehicle: true }))
+    .slice(0, 3)
+    .map((r) => compactRow(r, byId.get(r.entry.vehicleId)))
     .join('');
 
   main.innerHTML = `
-    <h1 class="page-title" tabindex="-1">Dashboard</h1>
-    <section class="stats" aria-label="This month">
-      <div class="stat stat-lead"><span class="stat-label">Fuel spend in ${fmt.month(monthKey(today), true)}</span><span class="stat-value">${fmt.money(month.amount)}</span></div>
-      <div class="stat"><span class="stat-label">Fuel bought this month</span><span class="stat-value">${unit ? fmt.qty(month.quantity, unit) : `${month.count} fills`}</span></div>
-      <div class="stat"><span class="stat-label">Vehicles</span><span class="stat-value">${vehicles.length}</span></div>
+    <section class="dash-band" aria-label="This month">
+      <h1 class="page-title" tabindex="-1">${fmt.month(monthKey(today), true)}</h1>
+      <span class="big">${fmt.money(month.amount)}</span>
+      <span class="sub">Fuel spend · ${sub}</span>
+      ${delta}
     </section>
 
     <section class="block">
-      <div class="block-head"><h2>Your vehicles</h2><a href="#/vehicles/new" class="link-add">${icon('plus')}Add vehicle</a></div>
-      <ul class="vlist">${vehicleRows}</ul>
+      <div class="section-head"><h2>My vehicles</h2><a href="#/vehicles/new">${icon('plus')} Add</a></div>
+      <ul class="vtiles">${tiles}</ul>
     </section>
 
     <section class="block">
-      <h2>Fuel spend by month</h2>
+      <div class="section-head"><h2>Recent fills</h2><a href="#/history">See all</a></div>
+      ${recent ? `<ul class="rows">${recent}</ul>` : `<p class="muted">No fills yet. Tap <strong>Add fuel</strong> below to add your first.</p>`}
+    </section>
+
+    <section class="block">
+      <div class="section-head"><h2>Monthly fuel spend</h2></div>
       ${monthlySpendChart(entries, today)}
-    </section>
-
-    <section class="block">
-      <div class="block-head"><h2>Recent fills</h2><a href="#/history">All history</a></div>
-      ${recentRows ? `${calcLegend}<ul class="entries">${recentRows}</ul>` : `<p class="muted">No fills yet. <a href="#/fuel/new">Add your first fuel entry</a>.</p>`}
     </section>`;
 }
 
@@ -110,7 +124,7 @@ function renderVehicle(main, v, analysis, entries) {
        </div>`
     : `<div class="hero-odo hero-empty"><p>${esc(mileageHint(s))}</p></div>`;
 
-  const recent = [...rows].reverse().slice(0, 5).map((r) => entryRow(r, v)).join('');
+  const recent = [...rows].reverse().slice(0, 5).map((r) => compactRow(r, v, { showVehicle: false })).join('');
 
   main.innerHTML = `
     <a class="back" href="#/">${icon('back')}All vehicles</a>
@@ -139,7 +153,7 @@ function renderVehicle(main, v, analysis, entries) {
     </section>
 
     <section class="block">
-      <h2>Recent fills</h2>
-      ${recent ? `${calcLegend}<ul class="entries">${recent}</ul>` : `<p class="muted">No fills yet. <a href="#/fuel/new?v=${encodeURIComponent(v.id)}">Add the first one</a> with the Add fuel button below.</p>`}
+      <div class="section-head"><h2>Recent fills</h2><a href="#/history?v=${encodeURIComponent(v.id)}">See all</a></div>
+      ${recent ? `<ul class="rows">${recent}</ul>` : `<p class="muted">No fills yet. Tap <strong>Add fuel</strong> below to add the first.</p>`}
     </section>`;
 }

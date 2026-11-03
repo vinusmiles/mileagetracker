@@ -2,7 +2,7 @@
 // keyboards, today's date filled in, last vehicle remembered.
 
 import * as store from '../store.js';
-import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog } from '../ui.js';
+import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req } from '../ui.js';
 import { fuelUnit, LIMITS, perUnitWord } from '../core/model.js';
 import { validateEntry } from '../core/validate.js';
 import { toNum, deriveAmounts, sortEntries } from '../core/calc.js';
@@ -47,7 +47,7 @@ export async function render(main, { params, query, navigate }) {
     return;
   }
 
-  const e = editing || { vehicleId: vehicle0.id, date: today, quantity: '', pricePerUnit: '', totalAmount: '', odometer: '', fullTank: false, station: '', notes: '', calculated: [] };
+  const e = editing || { vehicleId: vehicle0.id, date: today, quantity: '', pricePerUnit: '', totalAmount: '', odometer: '', fullTank: null, station: '', notes: '', calculated: [] };
   const val = (x) => (x === null || x === undefined ? '' : esc(x));
 
   const vehicleField = vehicles.length <= 4
@@ -60,17 +60,17 @@ export async function render(main, { params, query, navigate }) {
       <p class="form-error" role="alert" hidden></p>
       ${vehicleField}
       <div class="grid-2">
-        ${field('date', 'Date', `<input id="date" name="date" type="date" required max="${today}" value="${val(e.date)}">`)}
-        ${field('odometer', 'Odometer (km)', `<input id="odometer" name="odometer" type="text" inputmode="numeric" autocomplete="off" required value="${val(e.odometer)}">`, '<span data-last-odo></span>')}
+        ${field('date', req('Date'), `<input id="date" name="date" type="date" required max="${today}" value="${val(e.date)}">`)}
+        ${field('odometer', 'Odometer (km)', `<input id="odometer" name="odometer" type="text" inputmode="numeric" autocomplete="off" value="${val(e.odometer)}">`, '<span data-last-odo></span>')}
       </div>
       <div class="grid-3" data-amounts>
-        ${field('quantity', 'Fuel (<span data-unit></span>)', `<input id="quantity" name="quantity" type="text" inputmode="decimal" autocomplete="off" required value="${val(e.quantity)}">`)}
+        ${field('quantity', req('Fuel (<span data-unit></span>)'), `<input id="quantity" name="quantity" type="text" inputmode="decimal" autocomplete="off" required value="${val(e.quantity)}">`)}
         ${field('pricePerUnit', 'Price per <span data-unit-name></span> (optional)', `<input id="pricePerUnit" name="pricePerUnit" type="text" inputmode="decimal" autocomplete="off" value="${val(e.pricePerUnit)}">`)}
-        ${field('totalAmount', 'Total paid (₹)', `<input id="totalAmount" name="totalAmount" type="text" inputmode="decimal" autocomplete="off" required value="${val(e.totalAmount)}">`)}
+        ${field('totalAmount', req('Total paid (₹)'), `<input id="totalAmount" name="totalAmount" type="text" inputmode="decimal" autocomplete="off" required value="${val(e.totalAmount)}">`)}
       </div>
       <p class="hint hint-calc" data-calc-note hidden></p>
-      ${choices('fullTank', 'Did you fill the tank to full?', [{ value: 'yes', label: 'Yes, full tank' }, { value: 'no', label: 'No, partial' }], e.fullTank ? 'yes' : 'no')}
-      <p class="hint">Mileage is measured from one full tank to the next, so choose Yes only when the pump filled it to the top.</p>
+      ${choices('fullTank', req('Tank filled to full?'), [{ value: 'yes', label: 'Yes, full' }, { value: 'no', label: 'No, partial' }], e.fullTank === null || e.fullTank === undefined ? null : (e.fullTank ? 'yes' : 'no'))}
+      <p class="hint">Needed for mileage.</p>
       <details class="optional"${e.station || e.notes ? ' open' : ''}>
         <summary>Fuel station and notes (optional)</summary>
         ${field('station', 'Fuel station or place', `<input id="station" name="station" type="text" maxlength="${LIMITS.textMax}" autocomplete="off" value="${val(e.station)}">`)}
@@ -176,7 +176,7 @@ export async function render(main, { params, query, navigate }) {
       pricePerUnit: num('pricePerUnit'),
       totalAmount: num('totalAmount'),
       odometer: num('odometer'),
-      fullTank: fd.get('fullTank') === 'yes',
+      fullTank: fd.get('fullTank') === null ? null : fd.get('fullTank') === 'yes',
       station: fd.get('station') || '',
       notes: fd.get('notes') || '',
       calculated: computed ? [computed] : [],
@@ -189,7 +189,8 @@ export async function render(main, { params, query, navigate }) {
     if (Object.keys(notNumber).length) { showFieldErrors(form, notNumber); return; }
 
     const vehicle = pick(data.vehicleId);
-    const { errors, warnings } = validateEntry(data, { vehicle, entries: vehicleEntries, today: todayStr() });
+    const { errors, warnings } = validateEntry(data, { vehicle, entries: vehicleEntries, today: todayStr(), odometerOptional: true });
+    if (data.fullTank === null) errors.fullTank = 'Choose Yes or No.';
     if (errors.station || errors.notes) form.querySelector('details').open = true;
     if (!showFieldErrors(form, errors)) return;
 

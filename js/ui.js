@@ -257,3 +257,6 @@ document.addEventListener('click', (ev) => {
   const imgs = buttons.map((b) => b.querySelector('img'));
   openImageViewer(imgs.map((i) => i.currentSrc || i.src), imgs.map((i) => i.alt), buttons.indexOf(btn), btn);
 });
+
+/** Label text with a red asterisk for required fields. */
+export const req = (label) => `${label}<span class="req" aria-hidden="true">*</span><span class="sr-only"> (required)</span>`;

@@ -4,7 +4,7 @@
 // go back without re-taking them; they are released on save or cancel.
 
 import * as store from '../store.js';
-import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, mileageHint } from '../ui.js';
+import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, mileageHint, req } from '../ui.js';
 import { FUEL_TYPES, LIMITS, fuelUnitName, perUnitWord } from '../core/model.js';
 import { validateEntry } from '../core/validate.js';
 import { toNum, sortEntries, analyseVehicle } from '../core/calc.js';
@@ -243,7 +243,7 @@ async function renderReview(main, vehicles, ctx) {
   const v = session.values;
   const demo = providerInfo().isDemo;
   // Litres for petrol/diesel, kg for CNG.
-  const labels = { ...LABELS, quantity: `Fuel (${fuelUnitName(vehicle.fuelType)})`, pricePerUnit: `Price per ${perUnitWord(vehicle.fuelType)} (₹)` };
+  const labels = { ...LABELS, date: req('Date'), totalAmount: req('Total paid (₹)'), quantity: req(`Fuel (${fuelUnitName(vehicle.fuelType)})`), pricePerUnit: `Price per ${perUnitWord(vehicle.fuelType)} (₹)` };
   const val = (x) => (x === null || x === undefined ? '' : esc(x));
 
   const notFound = (name) => {
@@ -285,7 +285,7 @@ async function renderReview(main, vehicles, ctx) {
         ${f('pricePerUnit', textIn('pricePerUnit', 12, 'decimal'))}
         ${f('totalAmount', textIn('totalAmount', 12, 'decimal'))}
       </div>
-      ${choices('fullTank', 'Tank filled to full?', [{ value: 'yes', label: 'Yes, full' }, { value: 'no', label: 'No, partial' }], v.fullTank === null ? null : (v.fullTank ? 'yes' : 'no'))}
+      ${choices('fullTank', req('Tank filled to full?'), [{ value: 'yes', label: 'Yes, full' }, { value: 'no', label: 'No, partial' }], v.fullTank === null ? null : (v.fullTank ? 'yes' : 'no'))}
       ${f('odometer', textIn('odometer', 10, 'numeric'), 'Total km shown as ODO on the dashboard. Optional, but needed for mileage.')}
 
       <details class="optional"${v.fuelCompany || v.station || v.notes ? '' : ''}>
