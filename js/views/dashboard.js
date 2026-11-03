@@ -16,6 +16,7 @@ export async function render(main, { query, refresh }) {
 
   if (!vehicles.length) {
     main.innerHTML = `
+      <div class="logo-plate logo-plate-sm"><img src="assets/logo-full.webp" alt="GaadiKhata: fuel, maintenance, expenses and more" width="320" height="292"></div>
       <h1 class="page-title" tabindex="-1">Welcome to GaadiKhata</h1>
       ${emptyState({
         title: 'Start with your vehicle',

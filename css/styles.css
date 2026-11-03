@@ -8,9 +8,10 @@
   --ink: #1E2630;
   --muted: #5B6670;
   --line: #D9DFDC;
-  --green: #0B6E4F;
-  --green-hover: #095C42;
-  --green-soft: #E2F0EA;
+  --green: #0C6B32;
+  --green-hover: #08561F;
+  --green-soft: #E4F2E6;
+  --leaf: #4BA707;
   --on-green: #FFFFFF;
   --amber: #E3A21A;
   --amber-soft: #FBF0D6;
@@ -39,9 +40,10 @@
     --ink: #E6EAEE;
     --muted: #9AA5AF;
     --line: #2C353E;
-    --green: #2FA67C;
-    --green-hover: #3FB68B;
-    --green-soft: #173A2F;
+    --green: #3FB46A;
+    --green-hover: #55C47E;
+    --green-soft: #17351F;
+    --leaf: #7BC94A;
     --on-green: #08130F;
     --amber-soft: #3A2E12;
     --amber-ink: #F1C766;
@@ -535,3 +537,14 @@ body.viewer-open { overflow: hidden; }
 .viewer-prev, .viewer-next { position: absolute; top: 50%; transform: translateY(-50%); }
 .viewer-prev { left: .5rem; }
 .viewer-next { right: .5rem; }
+
+/* ---- Brand (logo colours: deep green + leaf green) ---- */
+.brand-mark { border-radius: 8px; background: #fff; }
+.brand-g { color: var(--ink); }
+.brand-k { color: var(--leaf); }
+.logo-plate { justify-self: center; display: grid; place-items: center; width: min(100%, 300px); padding: .5rem; border-radius: 16px; background: #fff; box-shadow: 0 1px 0 var(--line); }
+.logo-plate img { width: 100%; height: auto; }
+.logo-plate-sm { width: min(100%, 220px); margin: 0 auto 1rem; }
+.login .page-title { text-align: center; }
+.login .lead { text-align: center; }
+body.signed-out .topbar-gear { display: none; }

@@ -27,9 +27,9 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 
 | What | Where |
 |---|---|
-| Website | https://vinusmiles.github.io/mileagetracker/ (GitHub repo `vinusmiles/mileagetracker`, files at the repo root) |
+| Website | **https://gaadikhata.co.in** (custom domain, registered at GoDaddy; GitHub repo `vinusmiles/mileagetracker`, files at the repo root, `CNAME` file holds the domain). The old https://vinusmiles.github.io/mileagetracker/ address redirects to it |
 | Firebase project | `mileagemate-1311` (Spark plan, free): Authentication (Google) and Firestore (`asia-south1`, Mumbai) |
-| Authorised domain | `vinusmiles.github.io` |
+| Authorised domains | `vinusmiles.github.io`, `gaadikhata.co.in`, `www.gaadikhata.co.in` |
 | Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.5.2) |
 | Reader settings | Secret `ANTHROPIC_API_KEY`; text `FIREBASE_PROJECT_ID`, `ALLOWED_ORIGINS`, `DAILY_LIMIT` (30); KV binding `SCANS` → namespace `mileagemate-scans` |
 | AI provider | Claude API (Claude Console, individual account, prepaid credit), key `mileagemate-reader-2`, no expiry, model `claude-haiku-5-5` |
@@ -121,6 +121,20 @@ The app uses JavaScript modules, which browsers refuse to load from a double-cli
 
 - In a browser: open `tests/` on your local server or on the live site (for example `https://<username>.github.io/mileagemate/tests/`).
 - With Node 18 or newer: `npm test` (nothing to install).
+
+## Publishing: what goes to GitHub and what stays local
+
+The working folder `D:\Vinod data\Vinu apps\Mileage tracker` has everything. The public repository gets only the website:
+
+- **Published:** `index.html`, `manifest.webmanifest`, `css/`, `js/`, `assets/` (logo `logo-full.webp`, icons in `assets/icons/`, example photos in `assets/samples/`), `CNAME`, `LICENSE`, `README.md`, `firestore.rules`, `.gitignore`.
+- Keep your own photos and screenshots in `test-photos` (never published). PNG files elsewhere are published, because the browser icons are PNG.
+- **Kept local only:** `worker/` (the photo reader and its AI instructions, deployed by pasting into Cloudflare), `tests/` (including the sample invoice fixture), `package.json`, `_archive`, `test-photos`.
+
+Publish command:
+
+```
+robocopy "D:\Vinod data\Vinu apps\Mileage tracker" "D:\Vinod data\Vinu apps\mileagetracker-repo" /E /XD _archive test-photos .git worker tests /XF *.zip *.jpg *.jpeg package.json
+```
 
 ## Updating the live site
 
@@ -236,3 +250,7 @@ Photos are never saved. They are resized in the browser, kept in memory while yo
 1. **Phase 3 checklist:** Rules Playground check, second-device sign-in test, Firebase public-facing name ("GaadiKhata" instead of `mileagemate-1311.firebaseapp.com` on the Google sign-in screen).
 2. **Stage 4:** test Smart fuel entry on more receipts (Indian Oil, HP, Shell, faded or crumpled), daytime dashboards with glare, receipt-only and odometer-only scans; tune the reader's instructions where it misreads.
 3. **Later ideas:** fuel-left estimate and refuel alert (from mileage and tank size), CSV export, CNG and electric vehicles, optional phone OTP sign-in (needs Blaze billing and an SMS region policy).
+
+## Licence
+
+© 2026 Vinod. All rights reserved. See `LICENSE`. The code is visible because websites send their code to browsers; that does not grant permission to reuse it.
