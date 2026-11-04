@@ -1,9 +1,9 @@
 // Dashboard: an overview of all vehicles, or one vehicle's details (?v=id).
 
 import * as store from '../store.js';
-import { esc, fmt, icon, odometer, mileageHint, emptyState, toast } from '../ui.js';
+import { esc, fmt, icon, ricon, odometer, mileageHint, emptyState, toast } from '../ui.js';
 import { todayStr, monthKey, monthRange } from '../core/dates.js';
-import { inRange, totals } from '../core/calc.js';
+import { inRange, totals, monthlyTotals } from '../core/calc.js';
 import { fuelUnit } from '../core/model.js';
 import { analyseAll, monthlySpendChart, entryRow, compactRow, vehicleSubtitle, sampleTag, calcLegend, remindersHTML, dueLine } from './shared.js';
 import { vehicleReminders } from '../core/reminders.js';
@@ -47,7 +47,8 @@ function monthStats(entries) {
   return { today, month: totals(inRange(entries, from, to)) };
 }
 
-function renderOverview(main, vehicles, entries, analyses, reminders, challanList = []) {
+async function renderOverview(main, vehicles, entries, analyses, reminders, challanList = []) {
+  const busiest = await store.busiestVehicleId();
   const { today, month } = monthStats(entries);
   const units = new Set(vehicles.map((v) => fuelUnit(v.fuelType)));
   const unit = units.size === 1 ? [...units][0] : '';
@@ -87,37 +88,54 @@ function renderOverview(main, vehicles, entries, analyses, reminders, challanLis
     .map((r) => compactRow(r, byId.get(r.entry.vehicleId)))
     .join('');
 
+  // Mini bars for the last 6 months (current month highlighted)
+  const keys = lastMonthsKeys(today, 6);
+  const mt = monthlyTotals(entries);
+  const maxM = Math.max(1, ...keys.map((k) => mt[k]?.amount || 0));
+  const minibars = keys.map((k, i) => `<i style="height:${Math.max(8, Math.round(((mt[k]?.amount || 0) / maxM) * 100))}%"${i === keys.length - 1 ? ' class="now"' : ''}></i>`).join('');
+
+  // This month's spend per vehicle, for the chips
+  const vMonth = (v) => totals(inRange(entries.filter((e) => e.vehicleId === v.id), monthRange(monthKey(today)).from, monthRange(monthKey(today)).to)).amount;
+  const chips = vehicles.map((v) => `
+    <a class="vchip-card" href="#/?v=${encodeURIComponent(v.id)}">
+      <span class="vchip-icon tone-${v.type === 'two' ? 'teal' : 'green'}">${ricon(v.type === 'two' ? 'bike' : 'car', v.type === 'two' ? 'teal' : 'green')}</span>
+      <span><strong>${esc(v.nickname)}</strong><small>${fmt.money(vMonth(v))}</small></span>
+    </a>`).join('');
+
+  const tile = (href, name, tone, label) => `<a class="qtile tone-${tone}" href="${href}">${ricon(name, tone)}<span>${label}</span></a>`;
+  const firstV = encodeURIComponent((vehicles.find((v) => v.id === busiest) || vehicles[0]).id);
+
   main.innerHTML = `
-    <section class="dash-band" aria-label="This month">
-      <h1 class="page-title" tabindex="-1">${fmt.month(monthKey(today), true)}</h1>
-      <span class="big">${fmt.money(month.amount)}</span>
-      <span class="sub">Fuel spend · ${sub}</span>
-      ${delta}
-      <span class="more" aria-hidden="true">Trend ›</span>
-      <button type="button" class="band-link" data-scroll="spend-chart" aria-label="See monthly fuel spend chart"></button>
-    </section>
+    <h1 class="sr-only page-title" tabindex="-1">Home</h1>
+    <a class="spend-card" href="#/history" aria-label="This month's fuel spend ${fmt.money(month.amount)}. Open reports">
+      <span class="spend-text">
+        <span class="spend-label">This month's spend</span>
+        <span class="spend-amt">${fmt.money(month.amount)}</span>
+        <span class="spend-sub">${sub}</span>
+        ${prev.amount > 0 ? `<span class="spend-prev">${fmt.month(prevKey)}: ${fmt.money(prev.amount)}</span>` : ''}
+      </span>
+      <span class="minibars" aria-hidden="true">${minibars}</span>
+    </a>
+
+    <div class="vchip-row" aria-label="My vehicles">${chips}
+      <a class="vchip-card vchip-add" href="#/vehicles/new" aria-label="Add a vehicle">${icon('plus')}</a>
+    </div>
+
+    <nav class="qgrid" aria-label="Quick actions">
+      ${tile('#/scan', 'scan', 'green', 'Scan bill')}
+      ${tile(`#/fuel/new?manual=1&v=${firstV}`, 'fuel', 'amber', 'Add fuel')}
+      ${tile(`#/service/add?v=${firstV}`, 'service', 'purple', 'Add service')}
+      ${tile('#/challans', 'challan', 'red', 'Challans')}
+      ${tile('#/history', 'reports', 'blue', 'Reports')}
+      ${tile('#/reminders', 'reminders', 'teal', 'Reminders')}
+    </nav>
 
     ${alertsHTML(vehicles, reminders, challanList)}
-    <section class="block">
-      <div class="section-head"><h2>My vehicles</h2><a href="#/vehicles/new">${icon('plus')} Add</a></div>
-      <ul class="vtiles">${tiles}</ul>
-    </section>
 
     <section class="block">
       <div class="section-head"><h2>Recent fills</h2><a href="#/history">See all</a></div>
-      ${recent ? `<ul class="rows">${recent}</ul>` : `<p class="muted">No fills yet. Tap <strong>Add fuel</strong> below to add your first.</p>`}
-    </section>
-
-    <section class="block" id="spend-chart" tabindex="-1">
-      <div class="section-head"><h2>Monthly fuel spend</h2></div>
-      ${monthlySpendChart(entries, today, 6, vehicles)}
+      ${recent ? `<ul class="rows">${recent}</ul>` : `<p class="muted">No fills yet. Tap <strong>Scan</strong> below to add your first.</p>`}
     </section>`;
-
-  main.querySelector('[data-scroll]').addEventListener('click', () => {
-    const chart = main.querySelector('#spend-chart');
-    chart.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    chart.focus({ preventScroll: true });
-  });
 }
 
 function renderVehicle(main, v, analysis, entries, rem, vChallans = []) {
@@ -156,10 +174,10 @@ function renderVehicle(main, v, analysis, entries, rem, vChallans = []) {
       <a class="btn btn-quiet" href="#/vehicles/${encodeURIComponent(v.id)}/edit">Edit vehicle</a>
     </div>
 
-    <section class="block">
+    ${remindersHTML(v, rem) ? `<section class="block">
       <div class="section-head"><h2>Upcoming service</h2><a href="#/maintenance?v=${encodeURIComponent(v.id)}">Service history</a></div>
       ${remindersHTML(v, rem)}
-    </section>
+    </section>` : ''}
 
     ${challansSection(v, vChallans)}
 
@@ -190,4 +208,12 @@ function alertsHTML(vehicles, reminders, challanList = []) {
         <small>${esc(p.source === 'centre' ? 'Service centre: ' : 'Suggested: ')}${esc(dueLine(p))}</small></span></a></li>`);
   const all = [...unpaid, ...items];
   return all.length ? `<ul class="alerts" aria-label="Reminders">${all.join('')}</ul>` : '';
+}
+
+function lastMonthsKeys(today, n) {
+  const [y, m] = today.split('-').map(Number);
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(y, m - 1 - (n - 1 - i), 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
 }

@@ -29,10 +29,18 @@
     body.booting .splash { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; align-content: center; background: #fff; }
     .splash img { width: min(56vw, 220px); height: auto; }
   </style>
+  <!-- Start downloading the sign-in library together with the page (faster start) -->
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js" crossorigin>
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js" crossorigin>
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js" crossorigin>
   <link rel="stylesheet" href="css/styles.css">
   <script type="module" src="js/app.js"></script>
 </head>
 <body class="booting">
+  <script>
+    // Signed in last time on this device? Skip the splash and show the app frame at once.
+    try { if (localStorage.getItem('gk:signedIn') === '1') document.body.classList.remove('booting'); } catch (e) { /* private mode */ }
+  </script>
   <div class="splash" id="splash" aria-hidden="true"><img src="assets/logo-full.webp" alt="" width="220" height="200"><span></span></div>
   <button class="skip" type="button">Skip to content</button>
 
@@ -41,15 +49,17 @@
       <img src="assets/icons/emblem-96.webp" alt="" width="34" height="34" class="brand-mark">
       <span class="brand-name"><span class="brand-g">Gaadi</span><span class="brand-k">Khata</span></span>
     </a>
-    <a class="topbar-gear" href="#/settings" data-nav="settings" data-icon="settings" aria-label="Settings"><span class="sr-only">Settings</span></a>
+    <a class="appbar-back" href="#/" data-icon="back" aria-label="Back" hidden></a>
+    <span class="appbar-title" aria-hidden="true"></span>
+    <a class="appbar-bell" href="#/reminders" data-icon="bellLine" aria-label="Reminders"><span class="bell-badge" hidden></span></a>
   </header>
 
   <nav class="nav" aria-label="Main">
-    <a href="#/" data-nav="dashboard" data-icon="dashboard"><span>Dashboard</span></a>
+    <a href="#/" data-nav="dashboard" data-icon="home"><span>Home</span></a>
     <a href="#/vehicles" data-nav="vehicles" data-icon="vehicles"><span>Vehicles</span></a>
     <a href="#/scan" data-nav="fuel" data-icon="scanfuel" class="nav-add"><span>Scan</span></a>
-    <a href="#/history" data-nav="history" data-icon="history"><span>History</span></a>
-    <a href="#/maintenance" data-nav="maintenance" data-icon="wrench"><span>Maintenance</span></a>
+    <a href="#/history" data-nav="history" data-icon="reports"><span>Reports</span></a>
+    <a href="#/more" data-nav="more" data-icon="menu"><span>More</span></a>
   </nav>
 
   <div class="page">

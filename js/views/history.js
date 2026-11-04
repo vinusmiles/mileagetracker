@@ -12,7 +12,7 @@ export async function render(main, { query, navigate }) {
   const [vehicles, entries] = await Promise.all([store.listVehicles(), store.listEntries()]);
   if (!vehicles.length || !entries.length) {
     main.innerHTML = `
-      <h1 class="page-title" tabindex="-1">History</h1>
+      <h1 class="page-title" tabindex="-1">Reports</h1>
       ${emptyState({
         title: 'No fuel entries yet',
         text: 'Each fill you record shows up here with the distance and mileage worked out for you.',
@@ -85,7 +85,7 @@ export async function render(main, { query, navigate }) {
   const filterLabel = [vId ? byId.get(vId).nickname : 'All vehicles', { all: 'All time', month: fmt.month(month, true), year, range: 'Date range' }[period]].join(' · ');
   const filtersOpen = [...query.keys()].some((k) => k !== 'v') || query.has('open');
   main.innerHTML = `
-    <h1 class="page-title" tabindex="-1">History</h1>
+    <h1 class="page-title" tabindex="-1">Reports</h1>
     <details class="filter-box"${filtersOpen ? ' open' : ''}>
       <summary>Filter <span>${esc(filterLabel)}</span></summary>
       <form class="filters" aria-label="Filter history">

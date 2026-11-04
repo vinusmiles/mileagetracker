@@ -1,7 +1,7 @@
 // My vehicles: list, add, edit, delete.
 
 import * as store from '../store.js';
-import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req } from '../ui.js';
+import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req, ricon } from '../ui.js';
 import { VEHICLE_TYPES, FUEL_TYPES, LIMITS } from '../core/model.js';
 import { intervalSettings, DEFAULT_INTERVALS } from '../core/reminders.js';
 import { validateVehicle } from '../core/validate.js';
@@ -28,7 +28,7 @@ export async function renderList(main) {
       <li class="vcard vcard-tap">
         <a class="vtile-link" href="#/?v=${id}" aria-label="${esc(v.nickname)} details"></a>
         <div class="vcard-head">
-          <span class="vrow-icon">${icon(v.type)}</span>
+          <span class="vchip-icon tone-${v.type === 'two' ? 'teal' : 'green'}">${ricon(v.type === 'two' ? 'bike' : 'car', v.type === 'two' ? 'teal' : 'green')}</span>
           <div>
             <h2 class="vcard-name">${esc(v.nickname)} ${sampleTag(v)}</h2>
             <p class="vrow-sub">${vehicleSubtitle(v)}</p>

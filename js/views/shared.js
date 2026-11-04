@@ -126,6 +126,10 @@ export const dueLine = (r) => dueText(r, fmt.date, fmt.km);
 
 /** "Upcoming service" block: service-centre recommendation first, GaadiKhata's suggestions below, clearly labelled. */
 export function remindersHTML(vehicle, rem, { editIntervals = true } = {}) {
+  // Only what is due within a month (or overdue). Nothing due soon → no section at all.
+  const near = (x) => x && (x.status === 'due-soon' || x.status === 'overdue');
+  rem = { ...rem, centre: near(rem.centre) ? rem.centre : null, generic: rem.generic.filter(near) };
+  if (!rem.centre && !rem.generic.length) return '';
   const parts = [];
   if (rem.centre) {
     const c = rem.centre;
@@ -145,6 +149,5 @@ export function remindersHTML(vehicle, rem, { editIntervals = true } = {}) {
         ${editIntervals ? `<a class="rem-link" href="#/vehicles/${encodeURIComponent(vehicle.id)}/edit?section=intervals">Change intervals</a>` : ''}
       </div>`);
   }
-  if (!parts.length) parts.push('<p class="muted">Add a service record to start service reminders.</p>');
   return parts.join('');
 }

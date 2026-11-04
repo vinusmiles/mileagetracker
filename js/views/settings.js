@@ -13,6 +13,7 @@ export async function render(main, { refresh }) {
   const toImport = localDataToImport({ includeSkipped: true });
 
   main.innerHTML = `
+    <a class="back" href="#/more">${icon('back')}More</a>
     <h1 class="page-title" tabindex="-1">Settings</h1>
 
     <section class="block">
@@ -52,7 +53,7 @@ export async function render(main, { refresh }) {
 
     <section class="block">
       <h2>About</h2>
-      <p>GaadiKhata, version 1.6.1.</p>
+      <p>GaadiKhata, version 1.8.</p>
       <p class="muted">© 2026 GaadiKhata. All rights reserved.</p>
     </section>
 

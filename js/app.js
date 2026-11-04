@@ -15,9 +15,13 @@ import * as settings from './views/settings.js';
 import * as smart from './views/smart.js';
 import * as maintenance from './views/maintenance.js';
 import * as challans from './views/challans.js';
+import * as hub from './views/hub.js';
 
 const ROUTES = [
-  { re: /^\/$/, view: dashboard.render, nav: 'dashboard', title: 'Dashboard' },
+  { re: /^\/$/, view: dashboard.render, nav: 'dashboard', title: 'Home' },
+  { re: /^\/more$/, view: hub.renderMore, nav: 'more', title: 'More' },
+  { re: /^\/reminders$/, view: hub.renderReminders, nav: 'more', title: 'Reminders' },
+  { re: /^\/challans$/, view: hub.renderChallans, nav: 'more', title: 'Challans' },
   { re: /^\/vehicles$/, view: vehicles.renderList, nav: 'vehicles', title: 'My vehicles' },
   { re: /^\/vehicles\/new$/, view: vehicles.renderForm, nav: 'vehicles', title: 'Add a vehicle' },
   { re: /^\/vehicles\/([^/]+)\/edit$/, view: vehicles.renderForm, nav: 'vehicles', title: 'Edit vehicle' },
@@ -25,9 +29,9 @@ const ROUTES = [
   { re: /^\/fuel\/new$/, view: fuelForm.render, nav: 'fuel', title: 'Add fuel' },
   { re: /^\/smart$/, view: smart.render, nav: 'fuel', title: 'Smart fuel entry' },
   { re: /^\/fuel\/([^/]+)\/edit$/, view: fuelForm.render, nav: 'history', title: 'Edit fuel entry' },
-  { re: /^\/history$/, view: history.render, nav: 'history', title: 'History' },
-  { re: /^\/settings$/, view: settings.render, nav: 'settings', title: 'Settings' },
-  { re: /^\/maintenance$/, view: maintenance.renderHistory, nav: 'maintenance', title: 'Maintenance' },
+  { re: /^\/history$/, view: history.render, nav: 'history', title: 'Reports' },
+  { re: /^\/settings$/, view: settings.render, nav: 'more', title: 'Settings' },
+  { re: /^\/maintenance$/, view: maintenance.renderHistory, nav: 'more', title: 'Service history' },
   { re: /^\/recommendation\/new$/, view: maintenance.renderRecommendation, nav: 'maintenance', title: 'Next service' },
   { re: /^\/recommendation\/([^/]+)\/edit$/, view: maintenance.renderRecommendation, nav: 'maintenance', title: 'Next service' },
   { re: /^\/challan\/new$/, view: challans.renderForm, nav: 'vehicles', title: 'Add challan' },
@@ -122,6 +126,7 @@ async function render() {
     if (id === renderCount) main.innerHTML = errorPanel(err);
   }
   if (id !== renderCount) return;
+  syncAppBar(route, query);
   ready();
 
   const keep = focusId && document.getElementById(focusId);
@@ -154,6 +159,7 @@ function showMessage(html) {
 /** Point the data layer at the signed-in user's cloud data, or show sign-in. */
 async function useAccount(user) {
   document.body.classList.toggle('signed-out', !user);
+  try { if (user) localStorage.setItem('gk:signedIn', '1'); else localStorage.removeItem('gk:signedIn'); } catch { /* private mode */ }
   if (!user) return true;
   showMessage('<p class="loading" role="status">Loading your data…</p>');
   try {
@@ -204,3 +210,38 @@ async function boot() {
 }
 
 boot();
+
+// ---- Mobile app bar ----------------------------------------------------------
+// Home shows the logo and the bell. Every other screen shows ‹ Back + its title,
+// taken from the page's own heading and back link (desktop keeps them in the page).
+async function syncAppBar(route, query) {
+  const bar = document.querySelector('.topbar');
+  const isHome = route?.nav === 'dashboard' && !query?.get('v');
+  const back = main.querySelector(':scope > .back');
+  const title = main.querySelector('.page-title');
+  bar.classList.toggle('appbar-home', isHome);
+  document.body.classList.toggle('sub-page', !isHome);
+  const backBtn = bar.querySelector('.appbar-back');
+  backBtn.hidden = isHome || !back;
+  if (back) backBtn.setAttribute('href', back.getAttribute('href'));
+  bar.querySelector('.appbar-title').textContent = isHome ? '' : (title?.textContent || route?.title || '').trim();
+  // Bell badge: things that need attention (due/overdue services, unpaid challans)
+  try {
+    const n = await attentionCount();
+    const badge = bar.querySelector('.bell-badge');
+    badge.hidden = !n; badge.textContent = n > 9 ? '9+' : String(n);
+    bar.querySelector('.appbar-bell').setAttribute('aria-label', n ? `Reminders, ${n} need attention` : 'Reminders');
+  } catch { /* not loaded yet */ }
+}
+
+async function attentionCount() {
+  const { vehicleReminders } = await import('./core/reminders.js');
+  const { todayStr } = await import('./core/dates.js');
+  const [vehicles, entries, services, recs, ch] = await Promise.all([store.listVehicles(), store.listEntries(), store.listServices(), store.listRecommendations(), store.listChallans()]);
+  let n = ch.filter((c) => c.status !== 'paid').length;
+  for (const v of vehicles) {
+    const p = vehicleReminders(v, { services: services.filter((s) => s.vehicleId === v.id), entries: entries.filter((e) => e.vehicleId === v.id), recommendations: recs.filter((r) => r.vehicleId === v.id), today: todayStr() }).primary;
+    if (p && (p.status === 'overdue' || p.status === 'due-soon')) n += 1;
+  }
+  return n;
+}

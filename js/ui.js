@@ -20,6 +20,10 @@ const ICONS = {
   receipt: '<path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   scan: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M7 12h10"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  home: '<path d="M4 11.2 12 4.5l8 6.7V19a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H5.5A1.5 1.5 0 0 1 4 19z"/>',
+  reports: '<path d="M5 20V12M10 20V8M15 20v-5M20 20V5"/>',
+  menu: '<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/><path d="M4 5.5h16M4 18.5h16"/>',
+  bellLine: '<path d="M12 4a6 6 0 0 0-6 6v4l-1.8 3h15.6L18 14v-4a6 6 0 0 0-6-6zM10 20a2 2 0 0 0 4 0"/>',
   bulb: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.5 1.1 1.3 1.1 2.2h5c0-.9.4-1.7 1.1-2.2A6 6 0 0 0 12 3z"/>',
   image: '<rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-8.5 8"/>',
   instagram: '<rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17" cy="7" r=".8"/>',
@@ -272,4 +276,26 @@ export function vehicleSelect(vehicles, selectedId, label = 'Vehicle') {
       <select id="vehicleId" name="vehicleId" class="vehicle-select">${opts}</select>
       <p class="field-error" id="vehicleId-error" hidden></p>
     </div>`;
+}
+
+// ---- Rich two-tone icons for tiles and menus ----------------------------------
+// Each uses --c1 (main) and --c2 (light accent), set per tile in CSS.
+const RICH = {
+  scan: '<path d="M8 17V11a3 3 0 0 1 3-3h6M31 8h6a3 3 0 0 1 3 3v6M40 31v6a3 3 0 0 1-3 3h-6M17 40h-6a3 3 0 0 1-3-3v-6" fill="none" stroke="var(--c1)" stroke-width="3.4" stroke-linecap="round"/><rect x="15" y="13" width="18" height="22" rx="2.5" fill="var(--c2)"/><path d="M19 19h10M19 23.5h10M19 28h6" stroke="var(--c1)" stroke-width="2.4" stroke-linecap="round"/>',
+  fuel: '<rect x="9" y="9" width="20" height="31" rx="3.5" fill="var(--c1)"/><rect x="13" y="13" width="12" height="8" rx="1.6" fill="var(--c2)"/><rect x="6" y="38" width="26" height="4" rx="2" fill="var(--c1)"/><path d="M29 18h3.5a2.5 2.5 0 0 1 2.5 2.5V31a2.5 2.5 0 0 0 5 0V17l-4-4.5" fill="none" stroke="var(--c1)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="19" cy="29" r="3.2" fill="var(--c2)"/>',
+  service: '<path d="M31.5 7.5a8.5 8.5 0 0 0-8.6 11.2L8.6 33a3.6 3.6 0 0 0 5.1 5.1L28 23.8A8.5 8.5 0 0 0 39.4 13.7l-5 5-4.6-1.2-1.2-4.6 5-5a8.6 8.6 0 0 0-2.1-.4z" fill="var(--c1)"/><circle cx="11.2" cy="35.6" r="1.8" fill="var(--c2)"/><path d="M33 31l6 6" stroke="var(--c2)" stroke-width="5.5" stroke-linecap="round"/><path d="M27 25l4.5 4.5" stroke="var(--c2)" stroke-width="3" stroke-linecap="round"/>',
+  challan: '<rect x="15" y="5" width="18" height="34" rx="6" fill="var(--c1)"/><circle cx="24" cy="13" r="3.8" fill="#FF5A4E"/><circle cx="24" cy="22" r="3.8" fill="#FFC23D"/><circle cx="24" cy="31" r="3.8" fill="#43C26A"/><rect x="22" y="39" width="4" height="5" fill="var(--c1)"/><path d="M15 12h-4l4 4M33 12h4l-4 4M15 21h-4l4 4M33 21h4l-4 4" fill="var(--c2)"/>',
+  reports: '<rect x="7" y="27" width="7" height="13" rx="2" fill="var(--c2)"/><rect x="17" y="19" width="7" height="21" rx="2" fill="var(--c2)"/><rect x="27" y="23" width="7" height="17" rx="2" fill="var(--c2)"/><rect x="37" y="10" width="7" height="30" rx="2" fill="var(--c1)"/><path d="M8 21l10-8 9 5 11-10" fill="none" stroke="var(--c1)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  reminders: '<rect x="7" y="10" width="34" height="31" rx="5" fill="var(--c2)"/><path d="M7 15a5 5 0 0 1 5-5h24a5 5 0 0 1 5 5v4H7z" fill="var(--c1)"/><rect x="14" y="6" width="4" height="8" rx="2" fill="var(--c1)"/><rect x="30" y="6" width="4" height="8" rx="2" fill="var(--c1)"/><circle cx="24" cy="30" r="7" fill="#fff"/><path d="M24 26.5V30l2.5 2" fill="none" stroke="var(--c1)" stroke-width="2.4" stroke-linecap="round"/>',
+  history: '<rect x="9" y="6" width="30" height="36" rx="4" fill="var(--c2)"/><rect x="17" y="3.5" width="14" height="6" rx="2.5" fill="var(--c1)"/><path d="M15 18h18M15 25h18M15 32h11" stroke="var(--c1)" stroke-width="3" stroke-linecap="round"/>',
+  settings: '<path d="M24 5l3.2 4.4 5.3-1.3 1.3 5.3L38.2 16l-1.3 5.3L41 24l-4.4 3.2 1.3 5.3-5.3 1.3-2.4 4.4-5.3-1.3L24 41l-3.2-4.4-5.3 1.3-1.3-5.3L9.8 30l1.3-5.3L7 21.6l4.4-3.2-1.3-5.3 5.3-1.3L18 7.4l5.3 1.3z" fill="var(--c1)"/><circle cx="24" cy="23" r="7" fill="var(--c2)"/>',
+  contact: '<path d="M8 12a5 5 0 0 1 5-5h22a5 5 0 0 1 5 5v15a5 5 0 0 1-5 5H21l-8 7v-7a5 5 0 0 1-5-5z" fill="var(--c1)"/><circle cx="17" cy="19.5" r="2.6" fill="var(--c2)"/><circle cx="24" cy="19.5" r="2.6" fill="var(--c2)"/><circle cx="31" cy="19.5" r="2.6" fill="var(--c2)"/>',
+  car: '<path d="M8 27l3.5-9.5A5 5 0 0 1 16.2 14h15.6a5 5 0 0 1 4.7 3.5L40 27v8a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2v-2H15v2a2 2 0 0 1-2 2h-3a2 2 0 0 1-2-2z" fill="var(--c1)"/><path d="M14 25l2.4-6.4a2 2 0 0 1 1.9-1.3h11.4a2 2 0 0 1 1.9 1.3L34 25z" fill="var(--c2)"/><circle cx="15" cy="30" r="2.6" fill="var(--c2)"/><circle cx="33" cy="30" r="2.6" fill="var(--c2)"/>',
+  bike: '<circle cx="11" cy="32" r="6.5" fill="none" stroke="var(--c1)" stroke-width="3.4"/><circle cx="37" cy="32" r="6.5" fill="none" stroke="var(--c1)" stroke-width="3.4"/><path d="M14 25h7l3 4h8l4-7" fill="none" stroke="var(--c1)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 22c1.5-4 4-5.5 8-5.5h4.5l1.5 4.5-6 3H19z" fill="var(--c1)"/><path d="M20 17.5c1.8-1.6 3.6-2.2 6-2.2h3l1 3h-9z" fill="var(--c2)"/><path d="M33 15h4l2 4M30.5 15H34" fill="none" stroke="var(--c1)" stroke-width="2.8" stroke-linecap="round"/><rect x="21" y="27" width="7" height="5" rx="1.5" fill="var(--c2)"/>',
+  bell: '<path d="M24 6a12 12 0 0 0-12 12v8l-4 6h32l-4-6v-8A12 12 0 0 0 24 6z" fill="var(--c1)"/><path d="M19 36a5 5 0 0 0 10 0z" fill="var(--c2)"/>',
+};
+
+/** A rich two-tone icon. `tone` picks the colour pair (green, amber, purple, red, blue, teal, slate). */
+export function ricon(name, tone = 'green') {
+  return `<svg class="ricon tone-${tone}" viewBox="0 0 48 48" aria-hidden="true" focusable="false">${RICH[name] || ''}</svg>`;
 }

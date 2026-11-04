@@ -24,6 +24,8 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | v1.4: traffic challans (check online + records, scan a challan photo), monthly spend split by vehicle, scan defaults to the most-used vehicle, link preview, REMINDERS in the logo | ✅ Built |
 | v1.5: camera-first **Scan** (opens the camera directly; bill read in the background; one sheet for vehicle + odometer), start-up splash instead of a UI flash | ✅ Built |
 | v1.6: compact forms (fields side by side), vehicle dropdown in Scan for 3+ vehicles, pinch and 1×/2×/3× zoom in the scanner | ✅ Built |
+| v1.7: no splash for returning signed-in users (and the sign-in library preloads), green section headings, smaller buttons, Upcoming service shown only within a month of being due | ✅ Built |
+| v1.8: mobile-app layout. Home with spend card, vehicle chips and six icon tiles; tabs Home · Vehicles · Scan · Reports · More; app bar with back arrow, title and a reminders bell; new Reminders, Challans and More screens; two-tone icon set | ✅ Built |
 | Maintenance analytics, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |

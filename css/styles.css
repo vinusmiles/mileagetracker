@@ -928,3 +928,132 @@ body.booting .topbar, body.booting .nav, body.booting .page { visibility: hidden
 .cam-zoom button.on { background: #fff; color: #0B0F0D; }
 .scan-sheet .field-inline { margin-top: .2rem; }
 .grid-2, .grid-3 { align-items: end; }
+
+/* =====================================================================
+   v1.7: clear section headings, smaller buttons
+   ===================================================================== */
+/* Section headings: deep green with a leaf-green marker, so they stand apart from text */
+main h2, .section-head h2, .form-section {
+  display: flex; align-items: center; gap: .5rem;
+  color: var(--green); font-weight: 700; letter-spacing: .01em;
+}
+main h2::before, .form-section::before {
+  content: ""; flex: none; width: 4px; height: 1.05em; border-radius: 4px; background: var(--leaf);
+}
+/* Headings inside cards and dialogs keep their own look */
+.photo-slot h2, .slot-head h2, .empty h2, .rem h2, .dash-band h1, .dialog h2, .vcard-name, .scan-sheet h2 { color: var(--ink); }
+.photo-slot h2::before, .slot-head h2::before, .empty h2::before, .dialog h2::before, .vcard-name::before, .scan-sheet h2::before { content: none; }
+.danger h2 { color: var(--red); }
+.danger h2::before { background: var(--red); }
+/* Month headers in History */
+.month-head { color: var(--green); font-weight: 700; padding: .3rem .25rem .45rem; border-bottom: 2px solid var(--green-soft); margin-bottom: .45rem; }
+.month-head span:last-child, .month-head > :last-child { color: var(--ink); }
+@media (prefers-color-scheme: dark) { .month-head > :last-child { color: var(--ink); } }
+
+/* Smaller buttons throughout */
+.btn { min-height: 40px; padding: 0 .95rem; font-size: .95rem; border-radius: 10px; }
+.btn .icon { width: 18px; height: 18px; }
+.btn-sm { min-height: 34px; padding: 0 .7rem; font-size: .86rem; border-radius: 9px; }
+.btn-sm .icon { width: 16px; height: 16px; }
+.btn-block { min-height: 46px; font-size: 1rem; }
+.vcard-actions .btn { min-height: 32px; padding: 0 .75rem; font-size: .85rem; }
+.photo-actions .btn { min-height: 40px; }
+.choose-alt { min-height: 36px; font-size: .88rem; }
+.choice span { min-height: 42px; }
+
+/* Rich two-tone icons: colour pairs */
+.ricon { width: 30px; height: 30px; flex: none; }
+.tone-green { --c1: #0C6B32; --c2: #9BDB7C; --tile: #E6F5E7; }
+.tone-amber { --c1: #E07B00; --c2: #FFD27A; --tile: #FFF3DE; }
+.tone-purple { --c1: #6D3FD1; --c2: #C9B5FF; --tile: #F0EAFF; }
+.tone-red { --c1: #3A3F47; --c2: #F2A09A; --tile: #FFE9E7; }
+.tone-blue { --c1: #1F64D6; --c2: #A9C8FF; --tile: #E6F0FF; }
+.tone-teal { --c1: #0E8C7E; --c2: #93E0D5; --tile: #E1F6F3; }
+.tone-slate { --c1: #445064; --c2: #C3CBD8; --tile: #EEF1F5; }
+.tone-pink { --c1: #D6286E; --c2: #FFB2CE; --tile: #FFEAF2; }
+@media (prefers-color-scheme: dark) {
+  .tone-green { --tile: rgba(63, 180, 106, .16); } .tone-amber { --tile: rgba(255, 176, 50, .16); } .tone-purple { --tile: rgba(140, 100, 255, .18); }
+  .tone-red { --tile: rgba(255, 110, 100, .16); --c1: #C9D1DC; } .tone-blue { --tile: rgba(80, 140, 255, .18); } .tone-teal { --tile: rgba(30, 190, 170, .16); }
+  .tone-slate { --tile: rgba(200, 210, 225, .12); --c1: #C3CBD8; --c2: #6B778A; } .tone-pink { --tile: rgba(255, 90, 150, .16); }
+}
+
+/* =====================================================================
+   v1.8: mobile-app layout. App bar, Home tiles, menus
+   ===================================================================== */
+.appbar-back, .appbar-title, .appbar-bell { display: none; }
+@media (max-width: 899px) {
+  .topbar { display: flex; align-items: center; gap: .4rem; min-height: 56px; padding: .4rem .6rem .4rem .9rem; }
+  .appbar-bell { display: grid; position: relative; place-items: center; width: 42px; height: 42px; margin-left: auto; border-radius: 50%; color: var(--ink); }
+  .appbar-bell .icon { width: 24px; height: 24px; }
+  .appbar-bell:active { background: var(--green-soft); }
+  .bell-badge { position: absolute; top: 4px; right: 3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #E5484D; color: #fff; font: 700 .7rem/18px var(--body); text-align: center; box-shadow: 0 0 0 2px var(--surface); }
+  /* Sub-pages: ‹ Back + title in the bar; the in-page heading and back link become screen-reader only */
+  body.sub-page .topbar .brand { display: none; }
+  body.sub-page .appbar-title { display: block; flex: 1; min-width: 0; font: 700 1.15rem var(--head); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.sub-page .appbar-back:not([hidden]) { display: grid; place-items: center; width: 40px; height: 40px; margin-left: -.35rem; border-radius: 50%; color: var(--ink); }
+  body.sub-page .appbar-back .icon { width: 24px; height: 24px; }
+  body.sub-page main > .back { display: none; }
+  body.sub-page main > .page-title, body.sub-page .title-row > .page-title {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: 0; padding: 0;
+  }
+  body.sub-page .title-row { padding-top: .25rem; justify-content: flex-end; }
+  body.sub-page main > .subtitle, body.sub-page main > .lead { margin-top: .5rem; }
+  body.signed-out .appbar-bell { display: none; }
+}
+.sr-only.page-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* Home: this month's spend card with mini bars */
+.spend-card { display: flex; align-items: stretch; justify-content: space-between; gap: 1rem; margin: 1rem 0 .9rem; padding: 1.1rem 1.1rem 1rem; border-radius: 22px;
+  background: linear-gradient(150deg, #0C6B32 0%, #13853D 55%, #3E9E1F 100%); color: #fff; text-decoration: none; box-shadow: 0 10px 24px rgba(12, 107, 50, .25); }
+.spend-card:active { transform: scale(.99); }
+.spend-text { display: grid; gap: .15rem; align-content: start; }
+.spend-label { font-size: .9rem; opacity: .85; font-weight: 600; }
+.spend-amt { font: 800 2.35rem/1.1 var(--head); letter-spacing: .01em; }
+.spend-sub { font-size: .82rem; opacity: .85; }
+.spend-prev { justify-self: start; margin-top: .45rem; padding: .12rem .55rem; border-radius: 999px; background: rgba(255, 255, 255, .16); font-size: .76rem; }
+.minibars { display: flex; align-items: flex-end; gap: 5px; width: 96px; height: 74px; align-self: center; }
+.minibars i { flex: 1; border-radius: 4px 4px 2px 2px; background: rgba(255, 255, 255, .38); }
+.minibars i.now { background: #FFD24A; }
+
+/* Home: vehicle chips (scroll sideways) */
+.vchip-row { display: flex; gap: .6rem; overflow-x: auto; margin: 0 -1rem .9rem; padding: .15rem 1rem .4rem; scrollbar-width: none; scroll-snap-type: x proximity; }
+.vchip-row::-webkit-scrollbar { display: none; }
+.vchip-card { flex: none; display: flex; align-items: center; gap: .6rem; min-width: 150px; padding: .6rem .9rem .6rem .6rem; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); color: var(--ink); text-decoration: none; scroll-snap-align: start; }
+.vchip-card strong { display: block; font-size: .95rem; white-space: nowrap; max-width: 9rem; overflow: hidden; text-overflow: ellipsis; }
+.vchip-card small { color: var(--muted); font-weight: 600; }
+.vchip-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: var(--tile); }
+.vchip-add { min-width: 0; justify-content: center; padding: 0 1rem; color: var(--green); }
+
+/* Home: quick action tiles */
+.qgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .7rem; margin: 0 0 1.2rem; }
+.qtile { display: grid; justify-items: center; align-content: center; gap: .45rem; min-height: 98px; padding: .7rem .3rem; border-radius: 18px; background: var(--tile); color: var(--ink); text-decoration: none; font: 600 .86rem var(--body); text-align: center; }
+.qtile .ricon { width: 40px; height: 40px; }
+.qtile:active { transform: scale(.96); }
+@media (min-width: 900px) { .qgrid { grid-template-columns: repeat(6, 1fr); } }
+
+/* Menus (More, Challans check) */
+.menu { list-style: none; margin: 1rem 0; padding: 0; border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+.menu li + li { border-top: 1px solid var(--line); }
+.menu-item { display: flex; align-items: center; gap: .85rem; padding: .75rem .9rem; color: var(--ink); text-decoration: none; }
+.menu-item:active { background: var(--green-soft); }
+.menu-icon { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 13px; background: var(--tile); }
+.menu-text { flex: 1; min-width: 0; }
+.menu-text strong { display: block; font-size: 1rem; }
+.menu-text small { display: block; color: var(--muted); font-size: .82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.menu-chev { color: var(--muted); font-size: 1.4rem; }
+.center { text-align: center; } .small { font-size: .82rem; }
+
+/* Reminders list */
+.remind-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .55rem; }
+.remind-row { display: flex; align-items: center; gap: .75rem; padding: .7rem .85rem; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); color: var(--ink); text-decoration: none; }
+.remind-row .ricon { width: 34px; height: 34px; }
+.remind-row span:not(.st) { flex: 1; min-width: 0; }
+.remind-row strong { display: block; font-size: .93rem; }
+.remind-row small { display: block; color: var(--muted); font-size: .82rem; }
+
+/* Bottom bar: icon above label, app style */
+@media (max-width: 899px) {
+  .nav a span { font-size: .72rem; }
+  .nav a.active { color: var(--green); }
+  .nav a.active .icon { stroke-width: 2.3; }
+}

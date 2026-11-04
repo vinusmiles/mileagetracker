@@ -58,15 +58,14 @@ export async function renderHistory(main, { query, navigate }) {
       </li>`;
   }).join('');
 
+  const upcoming = remindersHTML(v, vehicleReminders(v, { services: all, entries: await store.listEntries(v.id), recommendations: await store.listRecommendations(v.id), today: todayStr() }));
   main.innerHTML = `
-    <h1 class="page-title" tabindex="-1">Maintenance</h1>
+    <a class="back" href="#/more">${icon('back')}More</a>
+    <h1 class="page-title" tabindex="-1">Service history</h1>
     ${vehicles.length > 1 ? `<div class="chip-row" role="group" aria-label="Vehicle">${vehicles.map((x) => `<a class="chip${x.id === v.id ? ' chip-on' : ''}" href="#/maintenance?v=${enc(x.id)}"${x.id === v.id ? ' aria-current="true"' : ''}>${esc(x.nickname)}</a>`).join('')}</div>` : ''}
     <h2 class="svc-title">${esc(v.nickname)}: service history ${sampleTag(v)}</h2>
     <p class="subtitle">${[typeLabel(v), vehicleLine(v)].filter(Boolean).join(', ')}</p>
-    <section class="block">
-      <div class="section-head"><h2>Upcoming service</h2></div>
-      ${remindersHTML(v, vehicleReminders(v, { services: all, entries: await store.listEntries(v.id), recommendations: await store.listRecommendations(v.id), today: todayStr() }))}
-    </section>
+    ${upcoming ? `<section class="block"><div class="section-head"><h2>Upcoming service</h2></div>${upcoming}</section>` : ''}
     <div class="actions">
       <a class="btn btn-primary" href="#/service/scan?v=${enc(v.id)}">${icon('camera')}Scan service invoice</a>
       <a class="btn" href="#/service/new?v=${enc(v.id)}">${icon('plus')}Add manually</a>
