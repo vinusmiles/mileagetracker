@@ -71,3 +71,9 @@ export async function extractInvoice({ pages, vehicle, latestOdometer, onProgres
     fieldsNeedingReview: ['odometerKm', 'serviceCentre'],
   };
 }
+
+/** DEMO challan reader: made-up values, clearly labelled in the app. */
+export async function extractChallan({ onProgress }) {
+  onProgress?.('send'); await wait(400); onProgress?.('read'); await wait(600);
+  return { date: todayStr(), amount: 1000, offence: 'Demo: riding without helmet', challanNumber: 'DEMO-CH-001', location: 'Demo junction', status: 'unpaid' };
+}

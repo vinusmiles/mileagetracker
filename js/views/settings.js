@@ -52,7 +52,7 @@ export async function render(main, { refresh }) {
 
     <section class="block">
       <h2>About</h2>
-      <p>GaadiKhata, version 1.3.1.</p>
+      <p>GaadiKhata, version 1.6.1.</p>
       <p class="muted">© 2026 GaadiKhata. All rights reserved.</p>
     </section>
 

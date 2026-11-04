@@ -4,7 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>GaadiKhata</title>
-  <meta name="description" content="GaadiKhata: fuel, mileage and service records for your bikes and cars.">
+  <meta name="description" content="GaadiKhata: snap your fuel bill and track mileage, service history, reminders and expenses for your bikes and cars.">
+  <!-- Link preview (WhatsApp, Instagram, Facebook, LinkedIn, X) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GaadiKhata">
+  <meta property="og:url" content="https://gaadikhata.co.in/">
+  <meta property="og:title" content="GaadiKhata: fuel, service and reminders for your vehicles">
+  <meta property="og:description" content="Snap your fuel bill. Track mileage, service history, reminders and expenses for your bikes and cars.">
+  <meta property="og:image" content="https://gaadikhata.co.in/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="GaadiKhata logo: fuel, maintenance, reminders, expenses">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#0C6B32">
   <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
@@ -12,10 +23,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap">
+  <style>
+    /* Critical: show only the splash until the app knows whether you are signed in */
+    body.booting .topbar, body.booting .nav, body.booting .page { visibility: hidden; }
+    body.booting .splash { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; align-content: center; background: #fff; }
+    .splash img { width: min(56vw, 220px); height: auto; }
+  </style>
   <link rel="stylesheet" href="css/styles.css">
   <script type="module" src="js/app.js"></script>
 </head>
-<body>
+<body class="booting">
+  <div class="splash" id="splash" aria-hidden="true"><img src="assets/logo-full.webp" alt="" width="220" height="200"><span></span></div>
   <button class="skip" type="button">Skip to content</button>
 
   <header class="topbar">
@@ -29,7 +47,7 @@
   <nav class="nav" aria-label="Main">
     <a href="#/" data-nav="dashboard" data-icon="dashboard"><span>Dashboard</span></a>
     <a href="#/vehicles" data-nav="vehicles" data-icon="vehicles"><span>Vehicles</span></a>
-    <a href="#/fuel/new" data-nav="fuel" data-icon="scanfuel" class="nav-add"><span>Scan</span></a>
+    <a href="#/scan" data-nav="fuel" data-icon="scanfuel" class="nav-add"><span>Scan</span></a>
     <a href="#/history" data-nav="history" data-icon="history"><span>History</span></a>
     <a href="#/maintenance" data-nav="maintenance" data-icon="wrench"><span>Maintenance</span></a>
   </nav>

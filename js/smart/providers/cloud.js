@@ -61,13 +61,13 @@ export async function extract({ receipt, odometer, onProgress, signal }) {
  * Service invoice: all pages go in one request and are read as one invoice.
  * Plain-text body (header line + one base64 page per line) keeps the Worker's CPU use low.
  */
-export async function extractInvoice({ pages, onProgress, signal }) {
+export async function extractInvoice({ pages, onProgress, signal, docType = 'service-invoice' }) {
   const user = auth.currentUser();
   if (!user) throw new ReaderError('Sign in to use invoice reading.', { retry: false });
   onProgress?.('send');
   const token = await user.getIdToken();
   const data = await Promise.all(pages.map((p) => toBase64(p.blob)));
-  const body = `${JSON.stringify({ docType: 'service-invoice', pages: pages.map(() => ({ mediaType: 'image/jpeg' })) })}\n${data.join('\n')}`;
+  const body = `${JSON.stringify({ docType, pages: pages.map(() => ({ mediaType: 'image/jpeg' })) })}\n${data.join('\n')}`;
 
   let res;
   try {
@@ -89,3 +89,6 @@ export async function extractInvoice({ pages, onProgress, signal }) {
   if (!out?.result) throw new ReaderError('The photo reader gave no answer. Try again.');
   return { ...out.result, readerModel: out.model || null };
 }
+
+/** Traffic challan: one or two photos (notice, SMS screenshot), same secure route. */
+export const extractChallan = (opts) => extractInvoice({ ...opts, docType: 'challan' });

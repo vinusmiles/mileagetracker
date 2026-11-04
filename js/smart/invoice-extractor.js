@@ -19,3 +19,11 @@ export async function extractInvoice(opts) {
   const raw = await r.extractInvoice(opts);
   return { ...normaliseInvoice(raw), readerModel: raw?.readerModel || null };
 }
+
+import { normaliseChallan } from './challan-schema.js';
+
+/** Read a traffic challan photo (notice or SMS screenshot). */
+export async function extractChallan(opts) {
+  const r = reader();
+  return normaliseChallan(await r.extractChallan(opts));
+}

@@ -115,7 +115,7 @@ export async function render(main, { query, navigate }) {
 
     <section class="block">
       <div class="section-head"><h2>Monthly fuel spend</h2></div>
-      ${monthlySpendChart(chartEntries, chartEnd, 12)}
+      ${monthlySpendChart(chartEntries, chartEnd, 12, vid ? null : vehicles)}
     </section>`;
 
   const form = main.querySelector('.filters');

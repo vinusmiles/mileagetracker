@@ -21,6 +21,9 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | v1.0–1.1: redesign (hybrid look: white app bar, green month card; month-first dashboard, vehicle tiles, compact fill rows, collapsible filters, required ✱ marks, simpler service form) | ✅ Built |
 | v1.2: **Scan** centre button; compact vehicle dropdown; service reminders (service-centre recommendation + GaadiKhata's generic intervals, kept separate) | ✅ Built |
 | v1.3: Scan opens Add fuel (smart or manual); new scan-fuel icon; Instagram contact buttons with a rotating border | ✅ Built |
+| v1.4: traffic challans (check online + records, scan a challan photo), monthly spend split by vehicle, scan defaults to the most-used vehicle, link preview, REMINDERS in the logo | ✅ Built |
+| v1.5: camera-first **Scan** (opens the camera directly; bill read in the background; one sheet for vehicle + odometer), start-up splash instead of a UI flash | ✅ Built |
+| v1.6: compact forms (fields side by side), vehicle dropdown in Scan for 3+ vehicles, pinch and 1×/2×/3× zoom in the scanner | ✅ Built |
 | Maintenance analytics, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |
@@ -33,7 +36,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | Website | **https://gaadikhata.co.in** (custom domain, registered at GoDaddy; GitHub repo `vinusmiles/mileagetracker`, files at the repo root, `CNAME` file holds the domain). The old https://vinusmiles.github.io/mileagetracker/ address redirects to it |
 | Firebase project | `mileagemate-1311` (Spark plan, free): Authentication (Google) and Firestore (`asia-south1`, Mumbai) |
 | Authorised domains | `vinusmiles.github.io`, `gaadikhata.co.in`, `www.gaadikhata.co.in` |
-| Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.6.0) |
+| Photo reader | Cloudflare Worker `mileagemate-reader` at https://mileagemate-reader.vinusmiles.workers.dev (worker version 0.7.0) |
 | Reader settings | Secret `ANTHROPIC_API_KEY`; text `FIREBASE_PROJECT_ID`, `ALLOWED_ORIGINS`, `DAILY_LIMIT` (30); KV binding `SCANS` → namespace `mileagemate-scans` |
 | AI provider | Claude API (Claude Console, individual account, prepaid credit), key `mileagemate-reader-2`, no expiry, model `claude-haiku-5-5` |
 
@@ -168,9 +171,16 @@ Two separate sources, never mixed:
 
 **Due logic:** due when the date arrives **or** the odometer (latest reading from fuel fills and services) reaches the km, whichever comes first; "due soon" within 30 days or 500 km (two-wheeler) / 1,000 km (four-wheeler). The dashboard shows **one alert per vehicle** (the service-centre recommendation wins over the generic suggestion, so the same visit is never announced twice); the vehicle page and service history list both, labelled by source. Reminders are shown in the app; there are no phone notifications.
 
+## Traffic challans
+
+On each vehicle page: **Challans** (unpaid and paid totals, latest records) and **Check for new challans online**, which copies the registration number and opens the official portal (Telangana e-Challan for TS/TG numbers, Parivahan for others). The portals require the owner to fill in a captcha, so GaadiKhata never fetches challans automatically.
+
+Add a challan by scanning a photo of the notice or an SMS/portal screenshot (Worker route `/extract-invoice` with `docType: "challan"`; names, phone numbers and licence numbers are never returned) or by typing it. Unpaid challans appear as a dashboard alert. Stored in `users/{uid}/vehicles/{vid}/challans/{id}`.
+
 ## Smart fuel entry: how photo reading works
 
-1. Add fuel → **Smart fuel entry** → pick the vehicle → add the **fuel bill or pump reading** photo, the odometer photo, or both → **Read details**. Example photos are shown in the empty slots (`assets/samples/`, WebP so they pass the publish filter).
+1. **Scan** (centre button) opens the camera straight away: snap the bill or pump screen (or Upload / Type it). Reading starts in the background while you pay. Then one sheet: vehicle (most-used pre-selected) and odometer (type, photo, or skip) → Continue → review. Live camera needs camera permission; without it, the phone's camera app or Upload is used.
+   Alternatively: Add fuel → **Smart fuel entry** → pick the vehicle → add the **fuel bill or pump reading** photo, the odometer photo, or both → **Read details**. Example photos are shown in the empty slots (`assets/samples/`, WebP so they pass the publish filter).
    **CNG vehicles** use kg, ₹/kg and km/kg throughout; CNG dispenser photos (TOTAL ₹, QTY kg, RATE ₹/kg) are read the same way, and the empty slot shows a CNG example for CNG vehicles.
    A **pump display** photo works too: the reader takes Amount, Volume and the Rate that matches them (dispensers often show two rates), and fills in today's date because the display shows none.
 2. The Worker reads the photos with Claude and returns: date, litres, price per litre, total, fuel type, fuel company, station, odometer (ODO only) and dashboard range.
@@ -193,7 +203,7 @@ Reader instructions handle known traps: Atot/Vtot running totals, "Printed on" t
 | "today's 30 photo scans" | Daily limit reached | Wait until tomorrow (UTC), or raise `DAILY_LIMIT` |
 | "The photo reader is not set up yet" | Secret, project id or `SCANS` binding missing | Re-check the Worker settings |
 
-Opening the Worker address in a browser should show `{"error":"origin-not-allowed",…,"allowedCount":1,"version":"0.6.0"}`: that confirms the version and that the allowed-website setting is loaded.
+Opening the Worker address in a browser should show `{"error":"origin-not-allowed",…,"allowedCount":1,"version":"0.7.0"}`: that confirms the version and that the allowed-website setting is loaded.
 
 ## Phase 2 setup: Firebase (done; kept for reference)
 

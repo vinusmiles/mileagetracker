@@ -23,14 +23,23 @@ export function analyseAll(vehicles, entries) {
   return map;
 }
 
-export function monthlySpendChart(entries, today, months = 6) {
+/**
+ * Monthly fuel spend bars. With `vehicles` and more than one vehicle in the data,
+ * each bar is split by vehicle (same colour per vehicle in every month).
+ */
+export function monthlySpendChart(entries, today, months = 6, vehicles = null) {
   const keys = lastMonths(today, months);
   const m = monthlyTotals(entries);
+  const used = vehicles ? vehicles.filter((v) => entries.some((e) => e.vehicleId === v.id)) : [];
+  const split = used.length > 1;
+  const per = split ? new Map(used.map((v) => [v.id, monthlyTotals(entries.filter((e) => e.vehicleId === v.id))])) : null;
   const bars = keys.map((k, i) => {
     const value = m[k]?.amount || 0;
-    return { label: fmt.monthShort(k), value, short: shortMoney(value), valueLabel: fmt.money(value), current: i === keys.length - 1 };
+    const segments = split ? used.map((v, si) => ({ value: per.get(v.id)[k]?.amount || 0, series: si })) : null;
+    const detail = split ? ` (${used.map((v, si) => `${v.nickname} ${fmt.money(segments[si].value)}`).join(', ')})` : '';
+    return { label: fmt.monthShort(k), value, short: shortMoney(value), valueLabel: fmt.money(value) + detail, current: i === keys.length - 1, segments };
   });
-  return barChart(bars, `Fuel spend for the last ${months} months`);
+  return barChart(bars, `Fuel spend for the last ${months} months`, split ? used.map((v, si) => ({ name: v.nickname, series: si })) : null);
 }
 
 const ISSUE_TEXT = {

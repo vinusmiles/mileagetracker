@@ -32,7 +32,7 @@ export async function render(main, { params, query, navigate }) {
   const today = todayStr();
   const remembered = store.getPref('lastVehicle');
   const pick = (id) => vehicles.find((v) => v.id === id);
-  const vehicle0 = pick(editing?.vehicleId) || pick(query.get('v')) || pick(remembered) || vehicles[0];
+  const vehicle0 = pick(editing?.vehicleId) || pick(query.get('v')) || pick(await store.busiestVehicleId()) || pick(remembered) || vehicles[0];
   if (!editing && query.get('manual') !== '1') {
     const v = encodeURIComponent(vehicle0.id);
     main.innerHTML = `
@@ -60,15 +60,15 @@ export async function render(main, { params, query, navigate }) {
       ${vehicleField}
       <div class="grid-2">
         ${field('date', req('Date'), `<input id="date" name="date" type="date" required max="${today}" value="${val(e.date)}">`)}
-        ${field('odometer', 'Odometer (km)', `<input id="odometer" name="odometer" type="text" inputmode="numeric" autocomplete="off" value="${val(e.odometer)}">`, '<span data-last-odo></span>')}
+        ${field('odometer', 'Odometer km', `<input id="odometer" name="odometer" type="text" inputmode="numeric" autocomplete="off" value="${val(e.odometer)}">`)}
       </div>
       <div class="grid-3" data-amounts>
-        ${field('quantity', req('Fuel (<span data-unit></span>)'), `<input id="quantity" name="quantity" type="text" inputmode="decimal" autocomplete="off" required value="${val(e.quantity)}">`)}
-        ${field('pricePerUnit', 'Price per <span data-unit-name></span> (optional)', `<input id="pricePerUnit" name="pricePerUnit" type="text" inputmode="decimal" autocomplete="off" value="${val(e.pricePerUnit)}">`)}
-        ${field('totalAmount', req('Total paid (₹)'), `<input id="totalAmount" name="totalAmount" type="text" inputmode="decimal" autocomplete="off" required value="${val(e.totalAmount)}">`)}
+        ${field('quantity', req('<span data-unit></span>'), `<input id="quantity" name="quantity" type="text" inputmode="decimal" autocomplete="off" required value="${val(e.quantity)}">`)}
+        ${field('pricePerUnit', '₹ / <span data-unit-name></span>', `<input id="pricePerUnit" name="pricePerUnit" type="text" inputmode="decimal" autocomplete="off" value="${val(e.pricePerUnit)}">`)}
+        ${field('totalAmount', req('Total ₹'), `<input id="totalAmount" name="totalAmount" type="text" inputmode="decimal" autocomplete="off" required value="${val(e.totalAmount)}">`)}
       </div>
       <p class="hint hint-calc" data-calc-note hidden></p>
-      ${choices('fullTank', req('Tank filled to full?'), [{ value: 'yes', label: 'Yes, full' }, { value: 'no', label: 'No, partial' }], e.fullTank === null || e.fullTank === undefined ? null : (e.fullTank ? 'yes' : 'no'))}
+      <div class="inline-choice">${choices('fullTank', req('Tank full?'), [{ value: 'yes', label: 'Yes, full' }, { value: 'no', label: 'Partial' }], e.fullTank === null || e.fullTank === undefined ? null : (e.fullTank ? 'yes' : 'no'))}</div>
       <p class="hint">Needed for mileage.</p>
       <details class="optional"${e.station || e.notes ? ' open' : ''}>
         <summary>Fuel station and notes (optional)</summary>
@@ -110,13 +110,12 @@ export async function render(main, { params, query, navigate }) {
     currentVehicle = pick(id) || vehicle0;
     vehicleEntries = await store.listEntries(currentVehicle.id);
     const unit = fuelUnit(currentVehicle.fuelType);
-    form.querySelectorAll('[data-unit]').forEach((s) => { s.textContent = unit; });
+    form.querySelectorAll('[data-unit]').forEach((s) => { s.textContent = unit === 'L' ? 'Litres' : 'Kg'; });
     form.querySelectorAll('[data-unit-name]').forEach((s) => { s.textContent = perUnitWord(currentVehicle.fuelType); });
     const others = sortEntries(vehicleEntries.filter((x) => x.id !== editing?.id));
     const last = others[others.length - 1];
-    form.querySelector('[data-last-odo]').textContent = last
-      ? `Last: ${fmt.km(last.odometer)} on ${fmt.date(last.date)}`
-      : (Number.isFinite(currentVehicle.initialOdometer) ? `Start: ${fmt.km(currentVehicle.initialOdometer)}` : 'First fill for this vehicle');
+    // Show the last reading inside the empty box (saves a line on small screens)
+    form.elements.odometer.placeholder = last?.odometer ? `Last ${fmt.kmNumber(last.odometer)}` : (Number.isFinite(currentVehicle.initialOdometer) ? `Start ${fmt.kmNumber(currentVehicle.initialOdometer)}` : 'km');
     resetWarnings();
   }
   form.querySelectorAll('[name="vehicleId"]').forEach((el) => el.addEventListener('change', onVehicleChange));

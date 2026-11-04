@@ -14,13 +14,14 @@ import * as history from './views/history.js';
 import * as settings from './views/settings.js';
 import * as smart from './views/smart.js';
 import * as maintenance from './views/maintenance.js';
+import * as challans from './views/challans.js';
 
 const ROUTES = [
   { re: /^\/$/, view: dashboard.render, nav: 'dashboard', title: 'Dashboard' },
   { re: /^\/vehicles$/, view: vehicles.renderList, nav: 'vehicles', title: 'My vehicles' },
   { re: /^\/vehicles\/new$/, view: vehicles.renderForm, nav: 'vehicles', title: 'Add a vehicle' },
   { re: /^\/vehicles\/([^/]+)\/edit$/, view: vehicles.renderForm, nav: 'vehicles', title: 'Edit vehicle' },
-  { re: /^\/scan$/, view: fuelForm.render, nav: 'fuel', title: 'Add fuel' },
+  { re: /^\/scan$/, view: smart.renderCamera, nav: 'fuel', title: 'Scan' },
   { re: /^\/fuel\/new$/, view: fuelForm.render, nav: 'fuel', title: 'Add fuel' },
   { re: /^\/smart$/, view: smart.render, nav: 'fuel', title: 'Smart fuel entry' },
   { re: /^\/fuel\/([^/]+)\/edit$/, view: fuelForm.render, nav: 'history', title: 'Edit fuel entry' },
@@ -29,6 +30,8 @@ const ROUTES = [
   { re: /^\/maintenance$/, view: maintenance.renderHistory, nav: 'maintenance', title: 'Maintenance' },
   { re: /^\/recommendation\/new$/, view: maintenance.renderRecommendation, nav: 'maintenance', title: 'Next service' },
   { re: /^\/recommendation\/([^/]+)\/edit$/, view: maintenance.renderRecommendation, nav: 'maintenance', title: 'Next service' },
+  { re: /^\/challan\/new$/, view: challans.renderForm, nav: 'vehicles', title: 'Add challan' },
+  { re: /^\/challan\/([^/]+)\/edit$/, view: challans.renderForm, nav: 'vehicles', title: 'Edit challan' },
   { re: /^\/service\/add$/, view: maintenance.renderAddChooser, nav: 'vehicles', title: 'Add service' },
   { re: /^\/service\/scan$/, view: maintenance.renderScan, nav: 'maintenance', title: 'Scan service invoice' },
   { re: /^\/service\/new$/, view: maintenance.renderNew, nav: 'maintenance', title: 'Add service' },
@@ -102,6 +105,7 @@ async function render() {
     document.title = 'Sign in | GaadiKhata';
     document.getElementById('banner').hidden = true;
     await login.render(main);
+    ready();
     main.querySelector('.page-title')?.focus({ preventScroll: true });
     return;
   }
@@ -118,6 +122,7 @@ async function render() {
     if (id === renderCount) main.innerHTML = errorPanel(err);
   }
   if (id !== renderCount) return;
+  ready();
 
   const keep = focusId && document.getElementById(focusId);
   if (keep) {
@@ -133,7 +138,15 @@ function setupChrome() {
   document.querySelector('.skip').addEventListener('click', () => main.querySelector('.page-title')?.focus() || main.focus());
 }
 
+/** Hide the start-up splash once the first real screen (sign-in or app) is ready. */
+function ready() {
+  if (!document.body.classList.contains('booting')) return;
+  document.body.classList.remove('booting');
+  setTimeout(() => document.getElementById('splash')?.remove(), 300);
+}
+
 function showMessage(html) {
+  if (!html.includes('class="loading"')) ready();
   main.innerHTML = html;
   main.querySelector('.page-title')?.focus();
 }

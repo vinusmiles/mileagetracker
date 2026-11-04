@@ -50,7 +50,7 @@ export async function useBackend(next) {
   await ensureLoaded();
 }
 
-const withDefaults = (d) => ({ ...d, services: Array.isArray(d.services) ? d.services : [], recommendations: Array.isArray(d.recommendations) ? d.recommendations : [] });
+const withDefaults = (d) => ({ ...d, services: Array.isArray(d.services) ? d.services : [], recommendations: Array.isArray(d.recommendations) ? d.recommendations : [], challans: Array.isArray(d.challans) ? d.challans : [] });
 
 export async function ensureLoaded() {
   if (!db) db = withDefaults(await backend.load());
@@ -142,8 +142,9 @@ export async function deleteVehicle(id) {
   const gone = d.entries.filter((e) => e.vehicleId === id);
   const goneServices = d.services.filter((x) => x.vehicleId === id);
   const goneRecs = d.recommendations.filter((x) => x.vehicleId === id);
-  const next = { ...d, vehicles: d.vehicles.filter((v) => v.id !== id), entries: d.entries.filter((e) => e.vehicleId !== id), services: d.services.filter((x) => x.vehicleId !== id), recommendations: d.recommendations.filter((x) => x.vehicleId !== id) };
-  await apply({ deleteEntries: gone, deleteServices: goneServices, deleteRecommendations: goneRecs, deleteVehicles: [vehicle] }, next);
+  const goneChallans = d.challans.filter((x) => x.vehicleId === id);
+  const next = { ...d, vehicles: d.vehicles.filter((v) => v.id !== id), entries: d.entries.filter((e) => e.vehicleId !== id), services: d.services.filter((x) => x.vehicleId !== id), recommendations: d.recommendations.filter((x) => x.vehicleId !== id), challans: d.challans.filter((x) => x.vehicleId !== id) };
+  await apply({ deleteEntries: gone, deleteServices: goneServices, deleteRecommendations: goneRecs, deleteChallans: goneChallans, deleteVehicles: [vehicle] }, next);
 }
 
 // ---- Fuel entries -------------------------------------------------------------
@@ -309,6 +310,43 @@ export async function saveRecommendation(data) {
   return copy(saved);
 }
 
+// ---- Traffic challans ------------------------------------------------------------
+
+export async function listChallans(vehicleId = null) {
+  const d = await ensureLoaded();
+  return copy(d.challans.filter((c) => !vehicleId || c.vehicleId === vehicleId)).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+}
+
+export async function getChallan(id) {
+  const c = (await ensureLoaded()).challans.find((x) => x.id === id);
+  return c ? copy(c) : null;
+}
+
+export async function saveChallan(data) {
+  const d = await ensureLoaded();
+  if (!d.vehicles.some((v) => v.id === data.vehicleId)) throw new StoreError('Choose a vehicle that still exists.');
+  const t = (v, max) => (v ? String(v).trim().slice(0, max) : null);
+  const fields = {
+    vehicleId: data.vehicleId, date: data.date, amount: data.amount,
+    status: data.status === 'paid' ? 'paid' : 'unpaid',
+    paidDate: data.status === 'paid' ? (data.paidDate || null) : null,
+    offence: t(data.offence, 160), challanNumber: t(data.challanNumber, 60), location: t(data.location, 160), notes: t(data.notes, 500),
+    source: ['manual', 'photo'].includes(data.source) ? data.source : 'manual',
+  };
+  const old = data.id ? d.challans.find((x) => x.id === data.id) : null;
+  if (data.id && !old) throw new StoreError('This challan no longer exists.');
+  const saved = old ? { ...old, ...fields, updatedAt: now() } : { id: newId(), ...fields, createdAt: now(), updatedAt: now() };
+  await apply({ putChallans: [saved] }, { ...d, challans: [...d.challans.filter((x) => x.id !== saved.id), saved] });
+  return copy(saved);
+}
+
+export async function deleteChallan(id) {
+  const d = await ensureLoaded();
+  const c = d.challans.find((x) => x.id === id);
+  if (!c) return;
+  await apply({ deleteChallans: [c] }, { ...d, challans: d.challans.filter((x) => x.id !== id) });
+}
+
 // ---- Sample data, import and reset ------------------------------------------------
 
 export async function hasDemoData() {
@@ -328,8 +366,8 @@ export async function removeDemoData() {
   const gone = d.entries.filter((e) => e.demo || demoIds.has(e.vehicleId));
   const goneServices = d.services.filter((x) => demoIds.has(x.vehicleId));
   await apply(
-    { deleteEntries: gone, deleteServices: goneServices, deleteRecommendations: d.recommendations.filter((x) => demoIds.has(x.vehicleId)), deleteVehicles: d.vehicles.filter((v) => v.demo) },
-    { ...d, vehicles: d.vehicles.filter((v) => !v.demo), entries: d.entries.filter((e) => !gone.includes(e)), services: d.services.filter((x) => !demoIds.has(x.vehicleId)), recommendations: d.recommendations.filter((x) => !demoIds.has(x.vehicleId)) },
+    { deleteEntries: gone, deleteServices: goneServices, deleteRecommendations: d.recommendations.filter((x) => demoIds.has(x.vehicleId)), deleteChallans: d.challans.filter((x) => demoIds.has(x.vehicleId)), deleteVehicles: d.vehicles.filter((v) => v.demo) },
+    { ...d, vehicles: d.vehicles.filter((v) => !v.demo), entries: d.entries.filter((e) => !gone.includes(e)), services: d.services.filter((x) => !demoIds.has(x.vehicleId)), recommendations: d.recommendations.filter((x) => !demoIds.has(x.vehicleId)), challans: d.challans.filter((x) => !demoIds.has(x.vehicleId)) },
   );
 }
 
@@ -358,7 +396,18 @@ export async function importData({ vehicles, entries, services = [] }) {
 
 export async function deleteAllData() {
   const d = await ensureLoaded();
-  await apply({ deleteEntries: d.entries, deleteServices: d.services, deleteRecommendations: d.recommendations, deleteVehicles: d.vehicles }, { version: 1, vehicles: [], entries: [], services: [], recommendations: [] });
+  await apply({ deleteEntries: d.entries, deleteServices: d.services, deleteRecommendations: d.recommendations, deleteChallans: d.challans, deleteVehicles: d.vehicles }, { version: 1, vehicles: [], entries: [], services: [], recommendations: [], challans: [] });
+}
+
+/** The vehicle with the most fuel fills (ties: the most recently filled). Used as the default pick. */
+export async function busiestVehicleId() {
+  const d = await ensureLoaded();
+  const stats = new Map(d.vehicles.map((v) => [v.id, { n: 0, last: '' }]));
+  for (const e of d.entries) {
+    const s = stats.get(e.vehicleId);
+    if (s) { s.n += 1; if (e.date > s.last) s.last = e.date; }
+  }
+  return [...stats.entries()].sort((a, b) => b[1].n - a[1].n || b[1].last.localeCompare(a[1].last))[0]?.[0] || null;
 }
 
 // ---- Small preferences (last used vehicle, and so on) ----------------------------

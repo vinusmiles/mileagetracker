@@ -8,7 +8,12 @@ import { esc } from './ui.js';
  * @param bars  [{ label, value, valueLabel, current }]
  * @param title accessible title
  */
-export function barChart(bars, title) {
+/**
+ * @param bars   [{ label, value, short, valueLabel, current, segments?: [{ value, series }] }]
+ * @param title  accessible title
+ * @param legend optional [{ name, series }] for stacked bars (one series per vehicle)
+ */
+export function barChart(bars, title, legend = null) {
   const W = 320;
   const H = 150;
   const top = 18;
@@ -23,8 +28,22 @@ export function barChart(bars, title) {
     const x = i * slot + (slot - bw) / 2;
     const y = top + plotH - h;
     const cx = i * slot + slot / 2;
+    // Stacked: segments share one rounded outline (clip) with thin gaps between them
+    let body;
+    if (b.segments?.length > 1 && h > 0) {
+      let yy = top + plotH;
+      const segs = b.segments.filter((s) => s.value > 0).map((s) => {
+        const sh = (s.value / b.value) * h;
+        yy -= sh;
+        return `<rect x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${bw.toFixed(1)}" height="${sh.toFixed(1)}" class="seg seg-${s.series % 6}"/>`;
+      }).join('');
+      body = `<clipPath id="bc-${i}"><rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="4"/></clipPath>
+        <g clip-path="url(#bc-${i})" class="${b.current ? 'stack stack-now' : 'stack'}">${segs}</g>`;
+    } else {
+      body = `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" class="${b.current ? 'bar bar-now' : 'bar'}"/>`;
+    }
     return `
-      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" class="${b.current ? 'bar bar-now' : 'bar'}"/>
+      ${body}
       ${b.value > 0 ? `<text x="${cx.toFixed(1)}" y="${(y - 5).toFixed(1)}" class="bar-val">${esc(b.short)}</text>` : ''}
       <text x="${cx.toFixed(1)}" y="${H - 6}" class="bar-lbl">${esc(b.label)}</text>`;
   }).join('');
@@ -36,6 +55,7 @@ export function barChart(bars, title) {
         <line x1="0" x2="${W}" y1="${top + plotH}" y2="${top + plotH}" class="axis"/>
         ${rects}
       </svg>
+      ${legend ? `<div class="chart-legend" aria-hidden="true">${legend.map((l) => `<span><i class="seg-dot seg-${l.series % 6}"></i>${esc(l.name)}</span>`).join('')}</div>` : ''}
       <figcaption class="sr-only">${esc(title)}<ul>${list}</ul></figcaption>
     </figure>`;
 }

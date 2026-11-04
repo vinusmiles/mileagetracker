@@ -51,7 +51,8 @@ export async function render(main, ctx) {
   if (asked && vehicles.some((v) => v.id === asked) && session.step === 'capture') session.vehicleId = asked;
   if (!vehicles.some((v) => v.id === session.vehicleId)) {
     const pref = store.getPref('lastVehicle');
-    session.vehicleId = vehicles.some((v) => v.id === pref) ? pref : vehicles[0].id;
+    const busiest = await store.busiestVehicleId();
+    session.vehicleId = busiest || (vehicles.some((v) => v.id === pref) ? pref : vehicles[0].id);
   }
   if (session.step === 'review' && session.result) return renderReview(main, vehicles, ctx);
   session.step = 'capture';
@@ -242,7 +243,8 @@ async function renderReview(main, vehicles, ctx) {
   const v = session.values;
   const demo = providerInfo().isDemo;
   // Litres for petrol/diesel, kg for CNG.
-  const labels = { ...LABELS, date: req('Date'), totalAmount: req('Total paid (₹)'), quantity: req(`Fuel (${fuelUnitName(vehicle.fuelType)})`), pricePerUnit: `Price per ${perUnitWord(vehicle.fuelType)} (₹)` };
+  const unitShort = fuelUnitName(vehicle.fuelType) === 'litres' ? 'Litres' : 'Kg';
+  const labels = { ...LABELS, date: req('Date'), odometer: 'Odometer km', totalAmount: req('Total ₹'), quantity: req(unitShort), pricePerUnit: `₹ / ${perUnitWord(vehicle.fuelType)}` };
   const val = (x) => (x === null || x === undefined ? '' : esc(x));
 
   const notFound = (name) => {
@@ -278,14 +280,17 @@ async function renderReview(main, vehicles, ctx) {
     <section class="checks" data-checks aria-live="polite"></section>
     <form class="form" novalidate>
       <p class="form-error" role="alert" tabindex="-1" hidden></p>
-      ${f('date', `<input id="date" name="date" type="date" max="${todayStr()}" value="${val(v.date)}">`, r.billKind === 'pump-display' && !r.transactionDate ? 'Pump screens show no date, so today is filled in.' : '')}
+      <div class="grid-2">
+        ${f('date', `<input id="date" name="date" type="date" max="${todayStr()}" value="${val(v.date)}">`)}
+        ${f('odometer', textIn('odometer', 10, 'numeric'))}
+      </div>
+      ${r.billKind === 'pump-display' && !r.transactionDate ? '<p class="hint">Pump screens show no date, so today is filled in.</p>' : ''}
       <div class="grid-3">
         ${f('quantity', textIn('quantity', 12, 'decimal'))}
         ${f('pricePerUnit', textIn('pricePerUnit', 12, 'decimal'))}
         ${f('totalAmount', textIn('totalAmount', 12, 'decimal'))}
       </div>
-      ${choices('fullTank', req('Tank filled to full?'), [{ value: 'yes', label: 'Yes, full' }, { value: 'no', label: 'No, partial' }], v.fullTank === null ? null : (v.fullTank ? 'yes' : 'no'))}
-      ${f('odometer', textIn('odometer', 10, 'numeric'), 'Total km shown as ODO on the dashboard. Optional, but needed for mileage.')}
+      <div class="inline-choice">${choices('fullTank', req('Tank full?'), [{ value: 'yes', label: 'Yes, full' }, { value: 'no', label: 'Partial' }], v.fullTank === null ? null : (v.fullTank ? 'yes' : 'no'))}</div>
 
       <details class="optional"${v.fuelCompany || v.station || v.notes ? '' : ''}>
         <summary>More details (optional)</summary>
@@ -422,5 +427,237 @@ async function renderReview(main, vehicles, ctx) {
         showFieldErrors(form, { _form: err.message });
       }
     });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Scan (#/scan): camera opens straight away, PhonePe-style.
+//   1. Snap the bill or pump screen (or Upload / Enter manually).
+//      Reading starts immediately in the background: the pump screen resets fast
+//      and the rider is busy paying, so no waiting here.
+//   2. One small sheet: which vehicle (most-used pre-selected) + odometer
+//      (type it, photo, or skip). Continue → the review screen, usually ready.
+// ---------------------------------------------------------------------------
+
+let cam = null; // { stream, video }
+
+function stopCamera() {
+  if (cam?.stream) cam.stream.getTracks().forEach((t) => t.stop());
+  cam = null;
+}
+window.addEventListener('hashchange', stopCamera);
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopCamera(); });
+
+async function startCamera(video) {
+  stopCamera();
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error('no-camera-api');
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    audio: false,
+  });
+  video.srcObject = stream;
+  await video.play().catch(() => {});
+  cam = { stream, video };
+  return stream;
+}
+
+function snapshot(video, digitalZoom = 1) {
+  const c = document.createElement('canvas');
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+  const z = Math.max(1, digitalZoom || 1);
+  const sw = w / z;
+  const sh = h / z;
+  c.width = Math.round(sw);
+  c.height = Math.round(sh);
+  c.getContext('2d').drawImage(video, (w - sw) / 2, (h - sh) / 2, sw, sh, 0, 0, c.width, c.height);
+  return new Promise((res) => c.toBlob((b) => res(b), 'image/jpeg', 0.92));
+}
+
+/** Full-screen camera. Resolves with a prepared photo, or 'manual', or null (closed). */
+function cameraOverlay(main, { title, hint, allowManual }) {
+  return new Promise((resolve) => {
+    const el = document.createElement('div');
+    el.className = 'cam';
+    el.innerHTML = `
+      <div class="cam-top">
+        <button type="button" class="cam-btn" data-close aria-label="Close">${icon('back')}</button>
+        <div><strong>${esc(title)}</strong><span>${esc(hint)}</span></div>
+      </div>
+      <div class="cam-stage">
+        <video playsinline muted autoplay></video>
+        <div class="cam-frame" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+        <div class="cam-zoom" role="group" aria-label="Zoom"><button type="button" data-z="1" class="on">1×</button><button type="button" data-z="2">2×</button><button type="button" data-z="3">3×</button></div>
+        <p class="cam-msg" hidden></p>
+      </div>
+      <div class="cam-bottom">
+        <label class="cam-side">${icon('image')}<span>Upload</span><input type="file" accept="image/jpeg,image/png,image/webp" data-upload></label>
+        <button type="button" class="cam-shutter" data-shoot aria-label="Take photo"><span></span></button>
+        ${allowManual
+          ? `<button type="button" class="cam-side" data-manual>${icon('fuel')}<span>Type it</span></button>`
+          : `<button type="button" class="cam-side" data-torch hidden>${icon('bulb')}<span>Torch</span></button>`}
+      </div>
+      ${allowManual ? `<button type="button" class="cam-torch" data-torch hidden aria-label="Torch">${icon('bulb')}</button>` : ''}
+      <label class="cam-fallback" hidden>${icon('camera')}<span>Open camera</span><input type="file" accept="image/*" capture="environment" data-fallback></label>`;
+    document.body.append(el);
+    document.body.classList.add('cam-open');
+    const video = el.querySelector('video');
+    const msg = el.querySelector('.cam-msg');
+    let done = false;
+    const finish = (val) => { if (done) return; done = true; stopCamera(); el.remove(); document.body.classList.remove('cam-open'); resolve(val); };
+    const useFile = async (file) => {
+      if (!file) return;
+      msg.hidden = false; msg.textContent = 'Preparing photo…';
+      try { finish(await preparePhoto(file)); } catch (e) { msg.textContent = e instanceof ImageError ? e.message : 'This photo could not be used.'; }
+    };
+
+    let zoom = 1;
+    let applyZoom = () => {};
+    const zoomBtns = el.querySelectorAll('[data-z]');
+    const showZoom = () => zoomBtns.forEach((b) => b.classList.toggle('on', Math.abs(Number(b.dataset.z) - zoom) < 0.25));
+    startCamera(video).then((stream) => {
+      const track = stream.getVideoTracks()[0];
+      const caps = track.getCapabilities ? track.getCapabilities() : {};
+      // Zoom: the phone's own camera zoom if offered (sharper), else a digital zoom
+      const hw = caps.zoom && caps.zoom.max > caps.zoom.min;
+      const maxZ = hw ? Math.min(caps.zoom.max, 5) : 4;
+      const minZ = hw ? Math.max(caps.zoom.min, 1) : 1;
+      applyZoom = (z) => {
+        zoom = Math.max(minZ, Math.min(maxZ, z));
+        if (hw) track.applyConstraints({ advanced: [{ zoom }] }).catch(() => {});
+        else video.style.transform = `scale(${zoom})`;
+        cam.digitalZoom = hw ? 1 : zoom;
+        showZoom();
+      };
+      zoomBtns.forEach((b) => { if (Number(b.dataset.z) > maxZ) b.hidden = true; b.addEventListener('click', () => applyZoom(Number(b.dataset.z))); });
+      // Pinch to zoom, like UPI scanners
+      const stage = el.querySelector('.cam-stage');
+      const pts = new Map();
+      let startDist = 0;
+      let startZoom = 1;
+      const dist = () => { const [a, b2] = [...pts.values()]; return Math.hypot(a.x - b2.x, a.y - b2.y); };
+      stage.addEventListener('pointerdown', (e) => { pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (pts.size === 2) { startDist = dist(); startZoom = zoom; } });
+      stage.addEventListener('pointermove', (e) => {
+        if (!pts.has(e.pointerId)) return;
+        pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pts.size === 2 && startDist > 0) applyZoom(startZoom * (dist() / startDist));
+      });
+      const up = (e) => { pts.delete(e.pointerId); if (pts.size < 2) startDist = 0; };
+      stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up); stage.addEventListener('pointerleave', up);
+      if (caps.torch) {
+        let on = false;
+        el.querySelectorAll('[data-torch]').forEach((b) => {
+          b.hidden = false;
+          b.addEventListener('click', async () => { on = !on; b.classList.toggle('on', on); try { await track.applyConstraints({ advanced: [{ torch: on }] }); } catch { /* not supported */ } });
+        });
+      }
+    }).catch(() => {
+      // No live camera (permission denied or unsupported): fall back to the phone's camera app.
+      el.querySelector('[data-shoot]').hidden = true;
+      el.querySelector('.cam-frame').hidden = true;
+      el.querySelector('.cam-fallback').hidden = false;
+      msg.hidden = false;
+      msg.textContent = 'Camera not available here. Use “Open camera” or Upload.';
+    });
+
+    el.querySelector('[data-shoot]').addEventListener('click', async () => {
+      if (!cam) return;
+      el.classList.add('flash');
+      const blob = await snapshot(video, cam?.digitalZoom || 1);
+      await useFile(new File([blob], 'scan.jpg', { type: 'image/jpeg' }));
+    });
+    el.querySelector('[data-upload]').addEventListener('change', (ev) => useFile(ev.target.files?.[0]));
+    el.querySelector('[data-fallback]').addEventListener('change', (ev) => useFile(ev.target.files?.[0]));
+    el.querySelector('[data-close]').addEventListener('click', () => finish(null));
+    el.querySelector('[data-manual]')?.addEventListener('click', () => finish('manual'));
+    window.addEventListener('hashchange', () => finish(null), { once: true });
+  });
+}
+
+export async function renderCamera(main, ctx) {
+  const vehicles = await store.listVehicles();
+  if (!vehicles.length) {
+    main.innerHTML = `<h1 class="page-title" tabindex="-1">Scan</h1>
+      ${emptyState({ title: 'Add a vehicle first', text: 'Fills are saved to a vehicle, so start by adding your bike or car.', actions: `<a class="btn btn-primary" href="#/vehicles/new">${icon('plus')}Add a vehicle</a>` })}`;
+    return;
+  }
+  resetSession();
+  main.innerHTML = '<p class="loading" role="status">Opening camera…</p>';
+  const first = await cameraOverlay(main, { title: 'Scan fuel bill', hint: 'Bill or pump screen inside the frame', allowManual: true });
+  if (first === 'manual') { ctx.navigate('/fuel/new?manual=1'); return; }
+  if (!first) { ctx.navigate('/'); return; }
+  session.receipt = first;
+
+  // Start reading the bill straight away, while the rider pays.
+  const busiest = await store.busiestVehicleId();
+  session.vehicleId = vehicles.some((v) => v.id === ctx.query.get('v')) ? ctx.query.get('v') : (busiest || vehicles[0].id);
+  const vehicleOf = () => vehicles.find((v) => v.id === session.vehicleId);
+  const entriesOf = async () => sortEntries(await store.listEntries(session.vehicleId));
+  const billRead = (async () => {
+    try {
+      return await extract({ receipt: session.receipt, odometer: null, vehicle: vehicleOf(), lastEntry: (await entriesOf()).slice(-1)[0] || null });
+    } catch (e) { return { error: e }; }
+  })();
+  let billDone = false;
+  billRead.then(() => { billDone = true; const s = main.querySelector('[data-read-state]'); if (s) { s.textContent = 'Bill read ✓'; s.classList.add('ok'); } });
+
+  const chips = vehicles.map((v) => `<button type="button" class="vchip${v.id === session.vehicleId ? ' on' : ''}" data-veh="${esc(v.id)}">${icon(v.type)}${esc(v.nickname)}</button>`).join('');
+  main.innerHTML = `
+    <h1 class="page-title" tabindex="-1">Almost done</h1>
+    <div class="scan-sheet">
+      <div class="scan-thumb"><img src="${first.url}" alt="Fuel bill photo"><span class="read-state" data-read-state>Reading bill…</span></div>
+      ${vehicles.length > 2
+        ? vehicleSelect(vehicles, session.vehicleId, 'Which vehicle?')
+        : `<h2>Which vehicle?</h2><div class="vchips" role="group" aria-label="Vehicle">${chips}</div>`}
+      <h2>Odometer <span class="muted">(optional)</span></h2>
+      <div class="odo-row">
+        <input id="odoKm" type="text" inputmode="numeric" autocomplete="off" placeholder="km on the ODO">
+        <button type="button" class="btn btn-upload" data-odo-photo>${icon('camera')}Photo</button>
+      </div>
+      <p class="hint" data-odo-hint>In a hurry? Skip it and add it later.</p>
+      <button type="button" class="btn btn-primary btn-block" data-continue>${icon('check')}Continue</button>
+    </div>`;
+  const sheet = main.querySelector('.scan-sheet');
+  if (billDone) { const s = sheet.querySelector('[data-read-state]'); s.textContent = 'Bill read ✓'; s.classList.add('ok'); }
+  sheet.querySelector('#vehicleId')?.addEventListener('change', (ev) => { session.vehicleId = ev.target.value; });
+  sheet.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-veh]');
+    if (!b) return;
+    session.vehicleId = b.dataset.veh;
+    sheet.querySelectorAll('[data-veh]').forEach((x) => x.classList.toggle('on', x === b));
+  });
+
+  let odoRead = null;
+  sheet.querySelector('[data-odo-photo]').addEventListener('click', async () => {
+    const shot = await cameraOverlay(main, { title: 'Odometer', hint: 'The ODO number on the dashboard', allowManual: false });
+    if (!shot) return;
+    session.odometer = shot;
+    const hint = sheet.querySelector('[data-odo-hint]');
+    hint.textContent = 'Reading odometer…';
+    odoRead = extract({ receipt: null, odometer: shot, vehicle: vehicleOf(), lastEntry: (await entriesOf()).slice(-1)[0] || null })
+      .then((r) => { if (r.odometerKm && !sheet.querySelector('#odoKm').value) sheet.querySelector('#odoKm').value = r.odometerKm; hint.textContent = r.odometerKm ? 'Odometer read ✓ Check the number.' : 'Could not read the ODO. Type it, or skip.'; return r; })
+      .catch(() => { hint.textContent = 'Could not read the ODO. Type it, or skip.'; return null; });
+  });
+
+  sheet.querySelector('[data-continue]').addEventListener('click', async (ev) => {
+    const btn = ev.currentTarget;
+    btn.disabled = true;
+    btn.textContent = billDone ? 'Opening…' : 'Finishing reading…';
+    const bill = await billRead;
+    const odo = odoRead ? await odoRead : null;
+    let result;
+    if (bill?.error) {
+      result = { ...(await import('../smart/schema.js')).emptyExtraction({ receiptProvided: true, odometerProvided: !!session.odometer }) };
+      toast(`Could not read the bill (${(bill.error.message || 'error').replace(/\.+$/, '')}). Fill in the details.`, 'error');
+    } else {
+      result = { ...bill };
+    }
+    if (odo && !odo.error) Object.assign(result, { odometerKm: odo.odometerKm, dashboardRangeKm: odo.dashboardRangeKm, dashboardTime: odo.dashboardTime, odometerReadable: odo.odometerReadable });
+    result.sourceImages = { receiptProvided: true, odometerProvided: !!session.odometer };
+    startReview(result);
+    const typed = toNum(sheet.querySelector('#odoKm').value);
+    if (typed > 0) session.values.odometer = Math.round(typed);
+    store.setPref('lastVehicle', session.vehicleId);
+    ctx.navigate('/smart');
   });
 }
