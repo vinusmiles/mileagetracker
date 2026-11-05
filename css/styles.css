@@ -1057,3 +1057,77 @@ main h2::before, .form-section::before {
   .nav a.active { color: var(--green); }
   .nav a.active .icon { stroke-width: 2.3; }
 }
+
+/* One-tap save after scanning: two big buttons pinned above the bottom bar */
+.quick-save { position: sticky; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + .6rem); z-index: 5; display: grid; grid-template-columns: 1.25fr 1fr; gap: .6rem; margin-top: .4rem; padding: .6rem; border-radius: 20px; background: var(--surface); box-shadow: 0 -4px 20px rgba(12, 40, 22, .10), var(--shadow); }
+.qs-btn { min-height: 62px; border-radius: 16px; justify-content: center; gap: .55rem; font-size: 1.05rem; }
+.qs-btn .icon { width: 22px; height: 22px; }
+.qs-btn span { display: grid; text-align: left; line-height: 1.15; }
+.qs-btn small { font-size: .78rem; font-weight: 600; opacity: .85; }
+.qs-partial { border: 1.5px solid var(--green); color: var(--green); background: var(--green-soft); }
+.review-first { justify-self: center; margin: .2rem 0 0; font-size: .86rem; color: var(--muted); text-decoration: underline; background: none; border: 0; }
+body.has-banner .quick-save { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 3.6rem); }
+@media (min-width: 900px) { .quick-save { bottom: 1rem; } }
+/* Review screen: Confirm and save always visible */
+.sticky-save { position: sticky; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + .6rem); z-index: 5; box-shadow: 0 6px 20px rgba(12, 107, 50, .35); }
+@media (min-width: 900px) { .sticky-save { bottom: 1rem; } }
+/* Toast with an action (Edit) */
+.toast-action { display: flex; align-items: center; gap: 1rem; justify-content: space-between; }
+.toast-action a { flex: none; color: #9BE07A; font-weight: 700; text-decoration: none; padding: .2rem .4rem; }
+
+/* Quick-save buttons: green = full tank, orange = partial (easy to tell apart at a glance) */
+.quick-save { grid-template-columns: 1fr 1fr; }
+.qs-full { background: linear-gradient(150deg, #0C6B32, #2E8F2A); border: 0; color: #fff; }
+.qs-partial { background: linear-gradient(150deg, #E07B00, #F2A21B); border: 0; color: #fff; }
+.qs-full:hover, .qs-full:active { color: #fff; filter: brightness(1.06); }
+.qs-partial:hover, .qs-partial:active { color: #fff; filter: brightness(1.06); }
+.qs-btn .icon { width: 26px; height: 26px; stroke-width: 2.2; }
+.qs-btn small { opacity: .95; }
+
+/* =====================================================================
+   v1.9.2: review screen fits on one screen; late messages never push Confirm
+   ===================================================================== */
+.review-head { display: flex; align-items: center; gap: .7rem; margin: .6rem 0 .5rem; }
+.review-head .thumbs { display: flex; gap: .35rem; margin: 0; flex: none; }
+.review-head .thumb { width: 44px; height: 44px; border-radius: 10px; }
+.review-head .thumb img { width: 100%; height: 100%; object-fit: cover; }
+.review-head p { margin: 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 1rem; }
+.notice-slim { display: flex; align-items: center; gap: .5rem; margin: 0 0 .5rem; padding: .45rem .7rem; font-size: .86rem; }
+.notice-slim .icon { width: 18px; height: 18px; flex: none; }
+.notice-demo { padding: .45rem .7rem; font-size: .86rem; display: flex; gap: .5rem; align-items: center; }
+/* Checks as small one-line chips (a reserved row, so arriving checks don't shift the form) */
+.checks-slim { min-height: 30px; margin: 0 0 .6rem; }
+.checks-slim ul { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+.checks-slim .check { display: inline-flex; align-items: center; gap: .3rem; max-width: 100%; margin: 0; padding: .2rem .6rem; border-radius: 999px; border: 0; font-size: .8rem; font-weight: 600; white-space: nowrap; }
+.checks-slim .check span { overflow: hidden; text-overflow: ellipsis; }
+.checks-slim .check .icon { width: 15px; height: 15px; flex: none; }
+.checks-slim .check-ok { background: var(--green-soft); color: var(--green); }
+.checks-slim .check-info { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.checks-slim .check-warn { background: var(--amber-soft); color: var(--amber-ink); }
+.field label small { font-weight: 500; font-size: .8em; }
+/* Confirm pinned; Change photos / Cancel as a slim row under it */
+.form-actions-stack .split { gap: .5rem; }
+.form-actions-stack .split .btn { min-height: 36px; font-size: .88rem; }
+
+/* Scan sheet: shorter photo strip, one-line hints */
+.scan-thumb { height: 108px; }
+.scan-sheet [data-odo-hint] { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+.scan-sheet { gap: .65rem; }
+
+/* =====================================================================
+   v1.9.3: action buttons FIXED above the bottom bar on phones.
+   Nothing above them (late messages, big fonts) can move them; content
+   scrolls underneath when it has to.
+   ===================================================================== */
+@media (max-width: 899px) {
+  .quick-save, .form-actions.review-footer {
+    position: fixed; z-index: 30; left: .6rem; right: .6rem; margin: 0;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + .5rem);
+  }
+  body.has-banner .quick-save, body.has-banner .form-actions.review-footer { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 3.4rem); }
+  .form-actions.review-footer { display: grid; gap: .45rem; padding: .55rem; border-radius: 20px; background: var(--surface); box-shadow: 0 -4px 20px rgba(12, 40, 22, .10), var(--shadow); }
+  .review-footer .sticky-save { position: static; box-shadow: none; }
+  /* Room for the fixed bars so the last fields can scroll above them */
+  .scan-sheet { padding-bottom: 6.6rem; }
+  form:has(.review-footer) { padding-bottom: 8.6rem; }
+}

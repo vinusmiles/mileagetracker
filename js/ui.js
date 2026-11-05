@@ -20,6 +20,8 @@ const ICONS = {
   receipt: '<path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
   scan: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M7 12h10"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  tankFull: '<path d="M3.5 16.5a8.5 8.5 0 0 1 17 0"/><path d="M12 16.5l5.2-4.4"/><circle cx="12" cy="16.5" r="1.3"/><path d="M5.5 19.5h13"/>',
+  tankHalf: '<path d="M3.5 16.5a8.5 8.5 0 0 1 17 0"/><path d="M12 16.5V9.6"/><circle cx="12" cy="16.5" r="1.3"/><path d="M5.5 19.5h13"/>',
   home: '<path d="M4 11.2 12 4.5l8 6.7V19a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H5.5A1.5 1.5 0 0 1 4 19z"/>',
   reports: '<path d="M5 20V12M10 20V8M15 20v-5M20 20V5"/>',
   menu: '<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/><path d="M4 5.5h16M4 18.5h16"/>',
@@ -64,15 +66,25 @@ export function mileageHint(summary) {
 
 // ---- Toasts ---------------------------------------------------------------------
 
-export function toast(message, kind = 'ok') {
+export function toast(message, kind = 'ok', action = null) {
   const box = document.getElementById('toasts');
   const el = document.createElement('div');
-  el.className = `toast toast-${kind}`;
+  el.className = `toast toast-${kind}${action ? ' toast-action' : ''}`;
   el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
-  el.textContent = message;
+  const text = document.createElement('span');
+  text.textContent = message;
+  el.append(text);
+  if (action) {
+    const a = document.createElement('a');
+    a.href = action.href;
+    a.textContent = action.label;
+    a.addEventListener('click', () => el.remove());
+    el.append(a);
+  }
   box.append(el);
-  setTimeout(() => el.classList.add('toast-out'), 3200);
-  setTimeout(() => el.remove(), 3600);
+  const life = action ? 6500 : 3200; // time to tap Edit
+  setTimeout(() => el.classList.add('toast-out'), life);
+  setTimeout(() => el.remove(), life + 400);
 }
 
 // ---- Confirm dialog -------------------------------------------------------------

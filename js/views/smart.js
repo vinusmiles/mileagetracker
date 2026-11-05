@@ -5,7 +5,7 @@
 
 import * as store from '../store.js';
 import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, mileageHint, req, vehicleSelect } from '../ui.js';
-import { FUEL_TYPES, LIMITS, fuelUnitName, perUnitWord } from '../core/model.js';
+import { FUEL_TYPES, LIMITS, fuelUnit, fuelUnitName, perUnitWord } from '../core/model.js';
 import { validateEntry } from '../core/validate.js';
 import { toNum, sortEntries, analyseVehicle } from '../core/calc.js';
 import { todayStr } from '../core/dates.js';
@@ -21,6 +21,16 @@ const FORM_NAME = {
   pricePerLitre: 'pricePerUnit', totalAmount: 'totalAmount', fuelCompany: 'fuelCompany', fuelStation: 'station',
   location: 'location', receiptNumber: 'receiptNumber', odometerKm: 'odometer', dashboardRangeKm: 'dashboardRangeKm',
 };
+// One-line versions of the review checks (the full sentence is in the tooltip)
+const SHORT_CHECK = {
+  'amount-match': 'Amounts match',
+  'odometer-missing': 'No odometer: mileage skipped',
+  'quantity-missing': 'Litres missing',
+  'amount-missing': 'Total missing',
+  'date-missing': 'Date missing',
+  'odometer-unreadable': 'Odometer not readable',
+};
+
 const LABELS = {
   date: 'Date', time: 'Time', fuelType: 'Fuel type', quantity: 'Fuel quantity', pricePerUnit: 'Price per unit (₹)',
   totalAmount: 'Total paid (₹)', fuelCompany: 'Fuel company', station: 'Fuel station', location: 'Location',
@@ -34,6 +44,7 @@ const ODO_NAMES = ['odometer', 'dashboardRangeKm'];
 const session = { vehicleId: null, receipt: null, odometer: null, step: 'capture', result: null, needsReview: new Set(), confirmed: new Set(), values: null };
 
 function resetSession() {
+  session.quickReason = '';
   release(session.receipt);
   release(session.odometer);
   Object.assign(session, { receipt: null, odometer: null, step: 'capture', result: null, needsReview: new Set(), confirmed: new Set(), values: null });
@@ -244,7 +255,7 @@ async function renderReview(main, vehicles, ctx) {
   const demo = providerInfo().isDemo;
   // Litres for petrol/diesel, kg for CNG.
   const unitShort = fuelUnitName(vehicle.fuelType) === 'litres' ? 'Litres' : 'Kg';
-  const labels = { ...LABELS, date: req('Date'), odometer: 'Odometer km', totalAmount: req('Total ₹'), quantity: req(unitShort), pricePerUnit: `₹ / ${perUnitWord(vehicle.fuelType)}` };
+  const labels = { ...LABELS, date: r.billKind === 'pump-display' && !r.transactionDate ? `${req('Date')} <small class="muted">(today)</small>` : req('Date'), odometer: 'Odometer km', totalAmount: req('Total ₹'), quantity: req(unitShort), pricePerUnit: `₹ / ${perUnitWord(vehicle.fuelType)}` };
   const val = (x) => (x === null || x === undefined ? '' : esc(x));
 
   const notFound = (name) => {
@@ -271,20 +282,19 @@ async function renderReview(main, vehicles, ctx) {
 
   main.innerHTML = `
     <h1 class="page-title" tabindex="-1">Check the details</h1>
-    ${demo ? `<div class="notice notice-demo" role="note">${icon('warn')}<div><p><strong>Demo values.</strong> These were made up by the demo reader, not read from your photos. Replace them with the real values before saving, or cancel.</p></div></div>` : ''}
-    <div class="review-top">
-      <p>For <strong>${esc(vehicle.nickname)}</strong><br><span class="muted">${vehicleSubtitle(vehicle)}</span></p>
+    ${demo ? `<div class="notice notice-demo" role="note">${icon('warn')}<span><strong>Demo values</strong>: replace them with the real ones.</span></div>` : ''}
+    <div class="review-head">
       <div class="thumbs" data-gallery>${thumbs}</div>
+      <p><strong>${esc(vehicle.nickname)}</strong>${vehicle.registration ? ` <span class="muted">· ${esc(vehicle.registration)}</span>` : ''}</p>
     </div>
-    <p class="hint">Check and correct if needed.</p>
-    <section class="checks" data-checks aria-live="polite"></section>
+    ${session.quickReason ? `<p class="notice notice-warn notice-slim" role="status">${icon('warn')}<span>${esc(session.quickReason)}</span></p>` : ''}
+    <section class="checks checks-slim" data-checks aria-live="polite"></section>
     <form class="form" novalidate>
       <p class="form-error" role="alert" tabindex="-1" hidden></p>
       <div class="grid-2">
         ${f('date', `<input id="date" name="date" type="date" max="${todayStr()}" value="${val(v.date)}">`)}
         ${f('odometer', textIn('odometer', 10, 'numeric'))}
       </div>
-      ${r.billKind === 'pump-display' && !r.transactionDate ? '<p class="hint">Pump screens show no date, so today is filled in.</p>' : ''}
       <div class="grid-3">
         ${f('quantity', textIn('quantity', 12, 'decimal'))}
         ${f('pricePerUnit', textIn('pricePerUnit', 12, 'decimal'))}
@@ -304,8 +314,8 @@ async function renderReview(main, vehicles, ctx) {
       </details>
 
       <div class="notice notice-warn" data-warnings role="alert" hidden></div>
-      <div class="form-actions form-actions-stack">
-        <button class="btn btn-primary btn-block" type="submit" data-save>${icon('check')}Confirm and save</button>
+      <div class="form-actions form-actions-stack review-footer">
+        <button class="btn btn-primary btn-block sticky-save" type="submit" data-save>${icon('check')}Confirm and save</button>
         <div class="split">
           <button class="btn" type="button" data-retake>${icon('camera')}Change photos</button>
           <button class="btn btn-quiet" type="button" data-cancel>Cancel</button>
@@ -337,7 +347,7 @@ async function renderReview(main, vehicles, ctx) {
     session.values = { ...d };
     const list = reviewChecks({ ...d, receiptIsFuel: r.receiptIsFuel, odometerReadable: r.odometerReadable, sourceImages: r.sourceImages }, { vehicle, entries, today: todayStr() });
     checksBox.innerHTML = list.length
-      ? `<ul>${list.map((c) => `<li class="check check-${c.level}">${icon(c.level === 'ok' ? 'check' : c.level === 'warn' ? 'warn' : 'info')}<span>${esc(c.message)}</span></li>`).join('')}</ul>`
+      ? `<ul>${list.map((c) => `<li class="check check-${c.level}" title="${esc(c.message)}">${icon(c.level === 'ok' ? 'check' : c.level === 'warn' ? 'warn' : 'info')}<span>${esc(SHORT_CHECK[c.code] || c.message)}</span></li>`).join('')}</ul>`
       : '';
     return list;
   };
@@ -615,7 +625,11 @@ export async function renderCamera(main, ctx) {
         <button type="button" class="btn btn-upload" data-odo-photo>${icon('camera')}Photo</button>
       </div>
       <p class="hint" data-odo-hint>In a hurry? Skip it and add it later.</p>
-      <button type="button" class="btn btn-primary btn-block" data-continue>${icon('check')}Continue</button>
+      <button type="button" class="link-btn review-first" data-review>Check details before saving</button>
+      <div class="quick-save" role="group" aria-label="Save">
+        <button type="button" class="btn qs-btn qs-full" data-save-full>${icon('tankFull')}<span>Save<small>Full tank</small></span></button>
+        <button type="button" class="btn qs-btn qs-partial" data-save-partial>${icon('tankHalf')}<span>Save<small>Partial fill</small></span></button>
+      </div>
     </div>`;
   const sheet = main.querySelector('.scan-sheet');
   if (billDone) { const s = sheet.querySelector('[data-read-state]'); s.textContent = 'Bill read ✓'; s.classList.add('ok'); }
@@ -639,10 +653,12 @@ export async function renderCamera(main, ctx) {
       .catch(() => { hint.textContent = 'Could not read the ODO. Type it, or skip.'; return null; });
   });
 
-  sheet.querySelector('[data-continue]').addEventListener('click', async (ev) => {
-    const btn = ev.currentTarget;
-    btn.disabled = true;
-    btn.textContent = billDone ? 'Opening…' : 'Finishing reading…';
+  // One tap: Save · Full tank / Save · Partial. Saves straight away when the reading is
+  // clean; opens the review screen (Confirm pinned at the bottom) only when it is not.
+  const go = async (fullTank, forceReview, btn) => {
+    sheet.querySelectorAll('.qs-btn, [data-review]').forEach((b) => { b.disabled = true; });
+    const label = btn.innerHTML;
+    if (!billDone) btn.innerHTML = `${icon('scan')}<span>Reading…</span>`;
     const bill = await billRead;
     const odo = odoRead ? await odoRead : null;
     let result;
@@ -657,7 +673,53 @@ export async function renderCamera(main, ctx) {
     startReview(result);
     const typed = toNum(sheet.querySelector('#odoKm').value);
     if (typed > 0) session.values.odometer = Math.round(typed);
+    if (fullTank !== null) session.values.fullTank = fullTank;
     store.setPref('lastVehicle', session.vehicleId);
-    ctx.navigate('/smart');
-  });
+
+    const vehicle = vehicleOf();
+    const entries = await store.listEntries(vehicle.id);
+    const v = session.values;
+    const entry = {
+      vehicleId: vehicle.id, date: v.date || '', fuelType: v.fuelType || null, quantity: v.quantity ?? null, pricePerUnit: v.pricePerUnit ?? null,
+      totalAmount: v.totalAmount ?? null, odometer: v.odometer ?? null, dashboardRangeKm: v.dashboardRangeKm ?? null, fullTank: v.fullTank,
+      fuelCompany: v.fuelCompany || '', station: v.station || '', notes: '', calculated: [], source: 'smart',
+    };
+    const reasons = quickSaveBlockers({ entry, result, vehicle, entries, demo: providerInfo().isDemo, forceReview, readFailed: !!bill?.error });
+    if (reasons.length) {
+      session.quickReason = reasons[0];
+      ctx.navigate('/smart');
+      return;
+    }
+    try {
+      const saved = await store.saveEntry(entry);
+      resetSession();
+      ctx.navigate('/');
+      toast(`Saved ${fmt.moneyExact(saved.totalAmount)} · ${fmt.qty(saved.quantity, saved.unit || fuelUnit(vehicle.fuelType))} · ${vehicle.nickname}`, 'ok', { label: 'Edit', href: `#/fuel/${encodeURIComponent(saved.id)}/edit` });
+    } catch (err) {
+      session.quickReason = err.message;
+      btn.innerHTML = label;
+      ctx.navigate('/smart');
+    }
+  };
+  sheet.querySelector('[data-save-full]').addEventListener('click', (ev) => go(true, false, ev.currentTarget));
+  sheet.querySelector('[data-save-partial]').addEventListener('click', (ev) => go(false, false, ev.currentTarget));
+  sheet.querySelector('[data-review]').addEventListener('click', (ev) => go(null, true, ev.currentTarget));
+}
+
+/** Why a scan cannot be saved in one tap (empty list = safe to save straight away). */
+export function quickSaveBlockers({ entry, result, vehicle, entries, demo, forceReview, readFailed }) {
+  const out = [];
+  if (forceReview) out.push('');
+  if (demo) out.push('Demo reader: check the made-up values.');
+  if (readFailed) out.push('The bill could not be read. Fill in the details.');
+  if (!(entry.quantity > 0) || !(entry.totalAmount > 0)) out.push('Some amounts could not be read. Please check them.');
+  if (!entry.date) out.push('The date could not be read. Please check it.');
+  if (entry.fullTank === null) out.push('');
+  const checks = reviewChecks({ ...entry, receiptIsFuel: result.receiptIsFuel, odometerReadable: result.odometerReadable, sourceImages: result.sourceImages }, { vehicle, entries, today: todayStr() });
+  for (const c of checks.filter((x) => x.level === 'warn')) out.push(c.message);
+  const { errors, warnings } = validateEntry(entry, { vehicle, entries, today: todayStr(), checkDuplicates: false, odometerOptional: true });
+  if (Object.keys(errors).length) out.push(Object.values(errors)[0]);
+  if (warnings.length) out.push('Please check the odometer reading.');
+  if (findPossibleDuplicates(entry, entries).length) out.push('This fill may already be saved. Please check.');
+  return out;
 }

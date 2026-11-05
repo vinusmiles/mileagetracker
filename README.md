@@ -26,6 +26,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | v1.6: compact forms (fields side by side), vehicle dropdown in Scan for 3+ vehicles, pinch and 1×/2×/3× zoom in the scanner | ✅ Built |
 | v1.7: no splash for returning signed-in users (and the sign-in library preloads), green section headings, smaller buttons, Upcoming service shown only within a month of being due | ✅ Built |
 | v1.8: mobile-app layout. Home with spend card, vehicle chips and six icon tiles; tabs Home · Vehicles · Scan · Reports · More; app bar with back arrow, title and a reminders bell; new Reminders, Challans and More screens; two-tone icon set | ✅ Built |
+| v1.9: one-tap scan. After the snap: **Save · Full tank** / **Save · Partial** (pinned); saves straight away when the reading is clean, with an Edit link in the confirmation; opens the review (Confirm pinned) only when something needs checking | ✅ Built |
 | Maintenance analytics, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |
