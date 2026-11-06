@@ -15,6 +15,9 @@ import * as settings from './views/settings.js';
 import * as smart from './views/smart.js';
 import * as maintenance from './views/maintenance.js';
 import * as challans from './views/challans.js';
+import * as documents from './views/documents.js';
+import { betaOn } from './beta.js';
+import { expiryAlerts } from './core/documents.js';
 import * as hub from './views/hub.js';
 import { registerServiceWorker } from './install.js';
 
@@ -23,6 +26,10 @@ const ROUTES = [
   { re: /^\/more$/, view: hub.renderMore, nav: 'more', title: 'More' },
   { re: /^\/reminders$/, view: hub.renderReminders, nav: 'more', title: 'Reminders' },
   { re: /^\/challans$/, view: hub.renderChallans, nav: 'more', title: 'Challans' },
+  { re: /^\/documents$/, view: documents.renderList, nav: 'more', title: 'Documents' },
+  { re: /^\/document\/new$/, view: documents.renderForm, nav: 'more', title: 'Add document' },
+  { re: /^\/document\/([^/]+)\/edit$/, view: documents.renderForm, nav: 'more', title: 'Replace document' },
+  { re: /^\/document\/([^/]+)$/, view: documents.renderDetail, nav: 'more', title: 'Document' },
   { re: /^\/vehicles$/, view: vehicles.renderList, nav: 'vehicles', title: 'My vehicles' },
   { re: /^\/vehicles\/new$/, view: vehicles.renderForm, nav: 'vehicles', title: 'Add a vehicle' },
   { re: /^\/vehicles\/([^/]+)\/edit$/, view: vehicles.renderForm, nav: 'vehicles', title: 'Edit vehicle' },
@@ -32,7 +39,7 @@ const ROUTES = [
   { re: /^\/fuel\/([^/]+)\/edit$/, view: fuelForm.render, nav: 'history', title: 'Edit fuel entry' },
   { re: /^\/history$/, view: history.render, nav: 'history', title: 'Reports' },
   { re: /^\/settings$/, view: settings.render, nav: 'more', title: 'Settings' },
-  { re: /^\/maintenance$/, view: maintenance.renderHistory, nav: 'more', title: 'Service history' },
+  { re: /^\/maintenance$/, view: maintenance.renderHistory, nav: 'dashboard', title: 'Service history' },
   { re: /^\/recommendation\/new$/, view: maintenance.renderRecommendation, nav: 'maintenance', title: 'Next service' },
   { re: /^\/recommendation\/([^/]+)\/edit$/, view: maintenance.renderRecommendation, nav: 'maintenance', title: 'Next service' },
   { re: /^\/challan\/new$/, view: challans.renderForm, nav: 'vehicles', title: 'Add challan' },
@@ -240,6 +247,7 @@ async function attentionCount() {
   const { todayStr } = await import('./core/dates.js');
   const [vehicles, entries, services, recs, ch] = await Promise.all([store.listVehicles(), store.listEntries(), store.listServices(), store.listRecommendations(), store.listChallans()]);
   let n = ch.filter((c) => c.status !== 'paid').length;
+  if (betaOn) n += expiryAlerts(await store.listDocuments(), todayStr()).length;
   for (const v of vehicles) {
     const p = vehicleReminders(v, { services: services.filter((s) => s.vehicleId === v.id), entries: entries.filter((e) => e.vehicleId === v.id), recommendations: recs.filter((r) => r.vehicleId === v.id), today: todayStr() }).primary;
     if (p && (p.status === 'overdue' || p.status === 'due-soon')) n += 1;

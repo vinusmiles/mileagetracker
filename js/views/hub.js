@@ -7,6 +7,8 @@ import { challanTotals, portalsFor } from '../core/challans.js';
 import { todayStr } from '../core/dates.js';
 import { statusChip, dueLine } from './shared.js';
 import { isInstalled, bindInstall } from '../install.js';
+import { betaOn } from '../beta.js';
+import { docLabel, expiryAlerts, expiryStatus, expiryText } from '../core/documents.js';
 
 const enc = encodeURIComponent;
 
@@ -21,9 +23,9 @@ export async function renderMore(main) {
   main.innerHTML = `
     <h1 class="page-title" tabindex="-1">More</h1>
     <ul class="menu">
-      ${menuItem('#/maintenance', 'history', 'purple', 'Service history', 'Past services, invoices and spend')}
       ${menuItem('#/reminders', 'reminders', 'teal', 'Reminders', 'Upcoming services and oil changes')}
       ${menuItem('#/challans', 'challan', 'red', 'Challans', 'Check online and track fines')}
+      ${betaOn ? menuItem('#/documents', 'document', 'blue', 'Documents', 'RC, insurance, pollution, licence') : ''}
       ${menuItem('#/vehicles', 'car', 'green', 'My vehicles', 'Add or edit bikes and cars')}
     </ul>
     <ul class="menu">
@@ -39,7 +41,7 @@ export async function renderMore(main) {
 }
 
 export async function renderReminders(main) {
-  const [vehicles, entries, services, recs, challans] = await Promise.all([store.listVehicles(), store.listEntries(), store.listServices(), store.listRecommendations(), store.listChallans()]);
+  const [vehicles, entries, services, recs, challans, docs] = await Promise.all([store.listVehicles(), store.listEntries(), store.listServices(), store.listRecommendations(), store.listChallans(), store.listDocuments()]);
   if (!vehicles.length) { main.innerHTML = `<h1 class="page-title" tabindex="-1">Reminders</h1>${emptyState({ title: 'No vehicles yet', text: 'Add a vehicle to get service reminders.', actions: `<a class="btn btn-primary" href="#/vehicles/new">${icon('plus')}Add a vehicle</a>` })}`; return; }
   const today = todayStr();
   const now = [];
@@ -51,7 +53,13 @@ export async function renderReminders(main) {
     const t = challanTotals(challans.filter((c) => c.vehicleId === v.id));
     if (t.unpaidCount) now.push({ v, challan: t });
   }
-  const row = ({ v, it, challan }) => challan
+  if (betaOn) {
+    const nameOf = (d) => (d.vehicleId ? vehicles.find((v) => v.id === d.vehicleId)?.nickname : '') || 'Me';
+    now.push(...expiryAlerts(docs, today).map((d) => ({ doc: d, who: nameOf(d) })));
+    later.push(...docs.filter((d) => expiryStatus(d, today) === 'ok').map((d) => ({ doc: d, who: nameOf(d) })));
+  }
+  const docRow = ({ doc, who }) => `<li><a class="remind-row" href="#/document/${enc(doc.id)}">${ricon('document', 'blue')}<span><strong>${esc(who)}: ${esc(expiryText(doc, today) || docLabel(doc))}</strong><small>Valid till ${esc(fmt.date(doc.expiryDate))}</small></span>${{ expired: '<span class="st st-overdue">Expired</span>', soon: '<span class="st st-soon">Expiring soon</span>' }[expiryStatus(doc, today)] || statusChip('upcoming')}</a></li>`;
+  const row = ({ v, it, challan, doc, who }) => doc ? docRow({ doc, who }) : challan
     ? `<li><a class="remind-row" href="#/?v=${enc(v.id)}">${ricon('challan', 'red')}<span><strong>${esc(v.nickname)}: ${challan.unpaidCount} unpaid ${challan.unpaidCount === 1 ? 'challan' : 'challans'}</strong><small>${fmt.money(challan.unpaidAmount)} to pay</small></span><span class="st st-overdue">Pay</span></a></li>`
     : `<li><a class="remind-row" href="${it.source === 'centre' ? `#/recommendation/${enc(it.id)}/edit` : `#/maintenance?v=${enc(v.id)}`}">${ricon(it.kind === 'oil' ? 'fuel' : 'service', it.source === 'centre' ? 'purple' : 'teal')}<span><strong>${esc(v.nickname)}: ${esc(it.label)}</strong><small>${esc(dueLine(it))}</small></span>${statusChip(it.status)}</a></li>`;
   main.innerHTML = `

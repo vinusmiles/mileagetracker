@@ -9,6 +9,9 @@ import { analyseAll, monthlySpendChart, entryRow, compactRow, vehicleSubtitle, s
 import { vehicleReminders } from '../core/reminders.js';
 import { challanTotals } from '../core/challans.js';
 import { challansSection, bindChallansSection } from './challans.js';
+import { documentsSection } from './documents.js';
+import { betaOn } from '../beta.js';
+import { expiryAlerts, expiryStatus, expiryText } from '../core/documents.js';
 import { installCardHTML, bindInstall } from '../install.js';
 
 const newestFirst = (a, b) => b.entry.date.localeCompare(a.entry.date)
@@ -16,7 +19,7 @@ const newestFirst = (a, b) => b.entry.date.localeCompare(a.entry.date)
   || String(b.entry.createdAt).localeCompare(String(a.entry.createdAt));
 
 export async function render(main, { query, refresh }) {
-  const [vehicles, entries, services, recommendations, challanList] = await Promise.all([store.listVehicles(), store.listEntries(), store.listServices(), store.listRecommendations(), store.listChallans()]);
+  const [vehicles, entries, services, recommendations, challanList, docs] = await Promise.all([store.listVehicles(), store.listEntries(), store.listServices(), store.listRecommendations(), store.listChallans(), store.listDocuments()]);
   const reminders = new Map(vehicles.map((v) => [v.id, vehicleReminders(v, { services: services.filter((s) => s.vehicleId === v.id), entries: entries.filter((e) => e.vehicleId === v.id), recommendations: recommendations.filter((r) => r.vehicleId === v.id), today: todayStr() })]));
 
   if (!vehicles.length) {
@@ -38,8 +41,8 @@ export async function render(main, { query, refresh }) {
 
   const analyses = analyseAll(vehicles, entries);
   const selected = vehicles.find((v) => v.id === query.get('v'));
-  if (selected) return renderVehicle(main, selected, analyses.get(selected.id), entries.filter((e) => e.vehicleId === selected.id), reminders.get(selected.id), challanList.filter((c) => c.vehicleId === selected.id));
-  return renderOverview(main, vehicles, entries, analyses, reminders, challanList);
+  if (selected) return renderVehicle(main, selected, analyses.get(selected.id), entries.filter((e) => e.vehicleId === selected.id), reminders.get(selected.id), challanList.filter((c) => c.vehicleId === selected.id), docs.filter((d) => d.vehicleId === selected.id));
+  return renderOverview(main, vehicles, entries, analyses, reminders, challanList, docs);
 }
 
 function monthStats(entries) {
@@ -48,7 +51,7 @@ function monthStats(entries) {
   return { today, month: totals(inRange(entries, from, to)) };
 }
 
-async function renderOverview(main, vehicles, entries, analyses, reminders, challanList = []) {
+async function renderOverview(main, vehicles, entries, analyses, reminders, challanList = [], docs = []) {
   const busiest = await store.busiestVehicleId();
   const { today, month } = monthStats(entries);
   const units = new Set(vehicles.map((v) => fuelUnit(v.fuelType)));
@@ -127,13 +130,13 @@ async function renderOverview(main, vehicles, entries, analyses, reminders, chal
     <nav class="qgrid" aria-label="Quick actions">
       ${tile('#/scan', 'scan', 'green', 'Scan bill')}
       ${tile(`#/fuel/new?manual=1&v=${firstV}`, 'fuel', 'amber', 'Add fuel')}
-      ${tile(`#/service/add?v=${firstV}`, 'service', 'purple', 'Add service')}
+      ${tile(`#/maintenance?v=${firstV}`, 'service', 'purple', 'Service')}
+      ${betaOn ? tile('#/documents', 'document', 'blue', 'Documents') : tile('#/history', 'reports', 'blue', 'Reports')}
       ${tile('#/challans', 'challan', 'red', 'Challans')}
-      ${tile('#/history', 'reports', 'blue', 'Reports')}
       ${tile('#/reminders', 'reminders', 'teal', 'Reminders')}
     </nav>
 
-    ${alertsHTML(vehicles, reminders, challanList)}
+    ${alertsHTML(vehicles, reminders, challanList, docs)}
 
     <section class="block">
       <div class="section-head"><h2>Recent fills</h2><a href="#/history">See all</a></div>
@@ -141,7 +144,7 @@ async function renderOverview(main, vehicles, entries, analyses, reminders, chal
     </section>`;  bindInstall(main);
 }
 
-function renderVehicle(main, v, analysis, entries, rem, vChallans = []) {
+function renderVehicle(main, v, analysis, entries, rem, vChallans = [], vDocs = []) {
   const { summary: s, rows } = analysis;
   const { today, month } = monthStats(entries);
   const u = fuelUnit(v.fuelType);
@@ -182,6 +185,8 @@ function renderVehicle(main, v, analysis, entries, rem, vChallans = []) {
       ${remindersHTML(v, rem)}
     </section>` : ''}
 
+    ${documentsSection(v, vDocs)}
+
     ${challansSection(v, vChallans)}
 
     <section class="block">
@@ -197,7 +202,7 @@ function renderVehicle(main, v, analysis, entries, rem, vChallans = []) {
 }
 
 /** One alert per vehicle, only when its main reminder is due soon or overdue (no duplicates). */
-function alertsHTML(vehicles, reminders, challanList = []) {
+function alertsHTML(vehicles, reminders, challanList = [], docs = []) {
   const unpaid = vehicles.map((v) => ({ v, t: challanTotals(challanList.filter((c) => c.vehicleId === v.id)) })).filter(({ t }) => t.unpaidCount)
     .map(({ v, t }) => `
       <li><a class="al-overdue" href="#/?v=${encodeURIComponent(v.id)}">${icon('warn')}
@@ -209,7 +214,12 @@ function alertsHTML(vehicles, reminders, challanList = []) {
       <li><a class="${p.status === 'overdue' ? 'al-overdue' : ''}" href="#/?v=${encodeURIComponent(v.id)}">${icon('wrench')}
         <span><strong>${esc(v.nickname)}: service ${p.status === 'overdue' ? 'overdue' : 'due soon'}</strong>
         <small>${esc(p.source === 'centre' ? 'Service centre: ' : 'Suggested: ')}${esc(dueLine(p))}</small></span></a></li>`);
-  const all = [...unpaid, ...items];
+  const today = todayStr();
+  const papers = (betaOn ? expiryAlerts(docs, today) : []).map((d) => `
+      <li><a class="${expiryStatus(d, today) === 'expired' ? 'al-overdue' : ''}" href="#/document/${encodeURIComponent(d.id)}">${icon('warn')}
+        <span><strong>${esc(vehicles.find((v) => v.id === d.vehicleId)?.nickname || 'Me')}: ${esc(expiryText(d, today))}</strong>
+        <small>Valid till ${esc(fmt.date(d.expiryDate))}</small></span></a></li>`);
+  const all = [...unpaid, ...papers, ...items];
   return all.length ? `<ul class="alerts" aria-label="Reminders">${all.join('')}</ul>` : '';
 }
 

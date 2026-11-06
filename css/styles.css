@@ -1241,3 +1241,13 @@ select:not([multiple]) { background: var(--surface) url("data:image/svg+xml,%3Cs
 .upi-app { display: grid; place-items: center; min-height: 60px; border: 1px solid #DDE3DD; border-radius: 14px; background: #fff; } /* always white: the logos have dark text */
 .upi-app img { display: block; height: 32px; max-width: 70%; }
 .upi-note { margin: .4rem 0 1rem; font-size: 1.05rem; }
+
+/* Documents (beta) */
+.doc-add { margin-bottom: 1.25rem; }
+.doc-label { margin: 0 0 .35rem; font-weight: 600; }
+.doc-pick { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.doc-pick .btn { position: relative; overflow: hidden; }
+.doc-pick input { position: absolute; inset: 0; opacity: 0; }
+.doc-facts p { margin: 0 0 .3rem; }
+.doc-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; }
+.doc-delete { color: var(--red); }

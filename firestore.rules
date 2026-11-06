@@ -5,6 +5,7 @@ rules_version = '2';
 //
 // Each signed-in user can read and write only their own tree:
 //   users/{uid}/vehicles/{vehicleId}/(fuelEntries | serviceRecords | recommendations | challans)
+//   users/{uid}/documents/{docId}/file/content
 // Everything else is denied. Writes are also checked for the right fields,
 // types and sensible ranges, so a modified browser cannot store junk.
 
@@ -128,9 +129,41 @@ service cloud.firestore {
         && shortString(d.createdAt, 40) && shortString(d.updatedAt, 40);
     }
 
+    function validDocument(d, docId) {
+      return d.keys().hasAll(['id', 'type', 'fileName', 'mimeType', 'fileSize', 'createdAt', 'updatedAt'])
+        && d.keys().hasOnly(['id', 'vehicleId', 'type', 'title', 'expiryDate', 'fileName', 'mimeType', 'fileSize', 'createdAt', 'updatedAt'])
+        && d.id == docId
+        && optionalString(d, 'vehicleId', 60)
+        && d.type in ['rc', 'insurance', 'puc', 'licence', 'other']
+        && optionalString(d, 'title', 60)
+        && (!('expiryDate' in d) || d.expiryDate == null || (d.expiryDate is string && d.expiryDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+        && shortString(d.fileName, 120)
+        && d.mimeType in ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+        && d.fileSize is int && d.fileSize > 0 && d.fileSize <= 1000000
+        && shortString(d.createdAt, 40) && shortString(d.updatedAt, 40);
+    }
+
+    function validDocumentFile(d) {
+      return d.keys().hasOnly(['data', 'mimeType'])
+        && d.keys().hasAll(['data', 'mimeType'])
+        && d.data is bytes && d.data.size() > 0 && d.data.size() <= 1000000
+        && d.mimeType in ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+    }
+
     match /users/{uid} {
       allow read, delete: if isOwner(uid);
       allow create, update: if isOwner(uid) && validUser(request.resource.data);
+
+      // Copies of RC, insurance, licence and so on: details, then the file (loaded only when opened).
+      match /documents/{docId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && validDocument(request.resource.data, docId);
+
+        match /file/{fileId} {
+          allow read, delete: if isOwner(uid);
+          allow create, update: if isOwner(uid) && fileId == 'content' && validDocumentFile(request.resource.data);
+        }
+      }
 
       match /vehicles/{vehicleId} {
         allow read, delete: if isOwner(uid);

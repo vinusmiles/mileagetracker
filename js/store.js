@@ -16,6 +16,7 @@
 import { buildDemoData } from './demo-data.js';
 import { todayStr } from './core/dates.js';
 import { fuelUnit } from './core/model.js';
+import { docLabel, fileProblem, MAX_DOCS_PER_OWNER, validateDocument } from './core/documents.js';
 import { createLocalBackend } from './backends/local.js';
 
 const PREFS_KEY = 'mileagemate:prefs';
@@ -50,7 +51,7 @@ export async function useBackend(next) {
   await ensureLoaded();
 }
 
-const withDefaults = (d) => ({ ...d, services: Array.isArray(d.services) ? d.services : [], recommendations: Array.isArray(d.recommendations) ? d.recommendations : [], challans: Array.isArray(d.challans) ? d.challans : [] });
+const withDefaults = (d) => ({ ...d, services: Array.isArray(d.services) ? d.services : [], recommendations: Array.isArray(d.recommendations) ? d.recommendations : [], challans: Array.isArray(d.challans) ? d.challans : [], documents: Array.isArray(d.documents) ? d.documents : [] });
 
 export async function ensureLoaded() {
   if (!db) db = withDefaults(await backend.load());
@@ -143,8 +144,9 @@ export async function deleteVehicle(id) {
   const goneServices = d.services.filter((x) => x.vehicleId === id);
   const goneRecs = d.recommendations.filter((x) => x.vehicleId === id);
   const goneChallans = d.challans.filter((x) => x.vehicleId === id);
-  const next = { ...d, vehicles: d.vehicles.filter((v) => v.id !== id), entries: d.entries.filter((e) => e.vehicleId !== id), services: d.services.filter((x) => x.vehicleId !== id), recommendations: d.recommendations.filter((x) => x.vehicleId !== id), challans: d.challans.filter((x) => x.vehicleId !== id) };
-  await apply({ deleteEntries: gone, deleteServices: goneServices, deleteRecommendations: goneRecs, deleteChallans: goneChallans, deleteVehicles: [vehicle] }, next);
+  const goneDocs = d.documents.filter((x) => x.vehicleId === id);
+  const next = { ...d, vehicles: d.vehicles.filter((v) => v.id !== id), entries: d.entries.filter((e) => e.vehicleId !== id), services: d.services.filter((x) => x.vehicleId !== id), recommendations: d.recommendations.filter((x) => x.vehicleId !== id), challans: d.challans.filter((x) => x.vehicleId !== id), documents: d.documents.filter((x) => x.vehicleId !== id) };
+  await apply({ deleteEntries: gone, deleteServices: goneServices, deleteRecommendations: goneRecs, deleteChallans: goneChallans, deleteDocuments: goneDocs, deleteVehicles: [vehicle] }, next);
 }
 
 // ---- Fuel entries -------------------------------------------------------------
@@ -347,6 +349,70 @@ export async function deleteChallan(id) {
   await apply({ deleteChallans: [c] }, { ...d, challans: d.challans.filter((x) => x.id !== id) });
 }
 
+// ---- Documents ---------------------------------------------------------------------
+// Details load with everything else; the file itself only when it is opened.
+
+/** All documents, or one vehicle's. */
+export async function listDocuments(vehicleId = null) {
+  const d = await ensureLoaded();
+  return copy(d.documents.filter((x) => !vehicleId || x.vehicleId === vehicleId));
+}
+
+export async function getDocument(id) {
+  const x = (await ensureLoaded()).documents.find((r) => r.id === id);
+  return x ? copy(x) : null;
+}
+
+/** `file` is { bytes, mimeType, fileName, size }, or null to keep the stored file. */
+export async function saveDocument(data, file = null) {
+  const d = await ensureLoaded();
+  if (!canKeepImages()) throw new StoreError('Sign in to keep documents.');
+  const old = data.id ? d.documents.find((x) => x.id === data.id) : null;
+  if (data.id && !old) throw new StoreError('This document no longer exists.');
+  const vehicleId = data.vehicleId || null;
+  if (vehicleId && !d.vehicles.some((v) => v.id === vehicleId)) throw new StoreError('Choose a vehicle that still exists.');
+  const errors = Object.values(validateDocument({ ...data, vehicleId }));
+  if (errors.length) throw new StoreError(errors[0]);
+  if (!old && !file) throw new StoreError('Add a photo or PDF.');
+  if (file) {
+    const problem = fileProblem(file);
+    if (problem) throw new StoreError(problem);
+  }
+  if (!old) {
+    const siblings = d.documents.filter((x) => (x.vehicleId || null) === vehicleId);
+    if (siblings.length >= MAX_DOCS_PER_OWNER) throw new StoreError(`You can keep up to ${MAX_DOCS_PER_OWNER} documents here. Delete one first.`);
+    if (data.type !== 'other' && siblings.some((x) => x.type === data.type)) throw new StoreError(`${docLabel(data)} is already added. Open it and tap Replace.`);
+  }
+  const fields = {
+    vehicleId,
+    type: data.type,
+    title: data.type === 'other' ? String(data.title).trim().slice(0, 60) : null,
+    expiryDate: data.expiryDate || null,
+    ...(file ? { fileName: String(file.fileName || 'document').slice(0, 120), mimeType: file.mimeType, fileSize: file.size } : {}),
+  };
+  const saved = old ? { ...old, ...fields, updatedAt: now() } : { id: newId(), ...fields, createdAt: now(), updatedAt: now() };
+  await apply(
+    { putDocuments: [saved], putDocumentFiles: file ? [{ doc: saved, bytes: file.bytes, mimeType: file.mimeType }] : [] },
+    { ...d, documents: [...d.documents.filter((x) => x.id !== saved.id), saved] },
+  );
+  return copy(saved);
+}
+
+export async function deleteDocument(id) {
+  const d = await ensureLoaded();
+  const x = d.documents.find((r) => r.id === id);
+  if (!x) return;
+  await apply({ deleteDocuments: [x] }, { ...d, documents: d.documents.filter((r) => r.id !== id) });
+}
+
+/** The stored file: { bytes, mimeType }. */
+export async function getDocumentFile(doc) {
+  if (!backend.loadDocumentFile) throw new StoreError('Sign in to open documents.');
+  const file = await backend.loadDocumentFile(doc);
+  if (!file) throw new StoreError('This file could not be found.');
+  return file;
+}
+
 // ---- Sample data, import and reset ------------------------------------------------
 
 export async function hasDemoData() {
@@ -366,8 +432,8 @@ export async function removeDemoData() {
   const gone = d.entries.filter((e) => e.demo || demoIds.has(e.vehicleId));
   const goneServices = d.services.filter((x) => demoIds.has(x.vehicleId));
   await apply(
-    { deleteEntries: gone, deleteServices: goneServices, deleteRecommendations: d.recommendations.filter((x) => demoIds.has(x.vehicleId)), deleteChallans: d.challans.filter((x) => demoIds.has(x.vehicleId)), deleteVehicles: d.vehicles.filter((v) => v.demo) },
-    { ...d, vehicles: d.vehicles.filter((v) => !v.demo), entries: d.entries.filter((e) => !gone.includes(e)), services: d.services.filter((x) => !demoIds.has(x.vehicleId)), recommendations: d.recommendations.filter((x) => !demoIds.has(x.vehicleId)), challans: d.challans.filter((x) => !demoIds.has(x.vehicleId)) },
+    { deleteEntries: gone, deleteServices: goneServices, deleteRecommendations: d.recommendations.filter((x) => demoIds.has(x.vehicleId)), deleteChallans: d.challans.filter((x) => demoIds.has(x.vehicleId)), deleteDocuments: d.documents.filter((x) => demoIds.has(x.vehicleId)), deleteVehicles: d.vehicles.filter((v) => v.demo) },
+    { ...d, vehicles: d.vehicles.filter((v) => !v.demo), entries: d.entries.filter((e) => !gone.includes(e)), services: d.services.filter((x) => !demoIds.has(x.vehicleId)), recommendations: d.recommendations.filter((x) => !demoIds.has(x.vehicleId)), challans: d.challans.filter((x) => !demoIds.has(x.vehicleId)), documents: d.documents.filter((x) => !demoIds.has(x.vehicleId)) },
   );
 }
 
@@ -396,7 +462,7 @@ export async function importData({ vehicles, entries, services = [] }) {
 
 export async function deleteAllData() {
   const d = await ensureLoaded();
-  await apply({ deleteEntries: d.entries, deleteServices: d.services, deleteRecommendations: d.recommendations, deleteChallans: d.challans, deleteVehicles: d.vehicles }, { version: 1, vehicles: [], entries: [], services: [], recommendations: [], challans: [] });
+  await apply({ deleteEntries: d.entries, deleteServices: d.services, deleteRecommendations: d.recommendations, deleteChallans: d.challans, deleteDocuments: d.documents, deleteVehicles: d.vehicles }, { version: 1, vehicles: [], entries: [], services: [], recommendations: [], challans: [], documents: [] });
 }
 
 /** The vehicle with the most fuel fills (ties: the most recently filled). Used as the default pick. */

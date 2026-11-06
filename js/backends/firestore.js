@@ -23,6 +23,8 @@ export function createFirestoreBackend(fb, uid) {
   const recRef = (x) => fs.doc(userRef, 'vehicles', x.vehicleId, 'recommendations', x.id);
   const challanRef = (x) => fs.doc(userRef, 'vehicles', x.vehicleId, 'challans', x.id);
   const pageRef = (x, i) => fs.doc(userRef, 'vehicles', x.vehicleId, 'serviceRecords', x.id, 'pages', String(i));
+  const documentRef = (x) => fs.doc(userRef, 'documents', x.id);
+  const documentFileRef = (x) => fs.doc(userRef, 'documents', x.id, 'file', 'content');
   const strip = (x) => JSON.parse(JSON.stringify(x)); // drops undefined values
 
   async function commit(writes) {
@@ -58,13 +60,24 @@ export function createFirestoreBackend(fb, uid) {
       const recommendations = recLists.flatMap((s, i) => s.docs.map((d) => ({ ...d.data(), id: d.id, vehicleId: vehicles[i].id })));
       const challanLists = await Promise.all(vehicles.map((v) => fs.getDocs(fs.collection(userRef, 'vehicles', v.id, 'challans'))));
       const challans = challanLists.flatMap((s, i) => s.docs.map((d) => ({ ...d.data(), id: d.id, vehicleId: vehicles[i].id })));
-      return { version: 1, vehicles, entries, services, recommendations, challans };
+      // Until the new security rules are published this read is refused: the rest of the app must still open.
+      const docSnap = await fs.getDocs(fs.collection(userRef, 'documents')).catch(() => null);
+      const documents = docSnap ? docSnap.docs.map((d) => ({ ...d.data(), id: d.id })) : [];
+      return { version: 1, vehicles, entries, services, recommendations, challans, documents };
     },
 
     /** Invoice pages are loaded only when a record is opened. */
     async loadPages(record) {
       const snap = await fs.getDocs(fs.collection(userRef, 'vehicles', record.vehicleId, 'serviceRecords', record.id, 'pages'));
       return snap.docs.map((d) => d.data()).sort((a, b) => a.index - b.index).map((p) => p.dataUrl);
+    },
+
+    /** A document's file is loaded only when it is opened. */
+    async loadDocumentFile(doc) {
+      const snap = await fs.getDoc(documentFileRef(doc));
+      if (!snap.exists()) return null;
+      const { data, mimeType } = snap.data();
+      return { bytes: data.toUint8Array(), mimeType };
     },
 
     /** ops: { putVehicles, putEntries, deleteVehicles, deleteEntries } (full records) */
@@ -85,6 +98,14 @@ export function createFirestoreBackend(fb, uid) {
       for (const r of ops.deleteRecommendations || []) writes.push((b) => b.delete(recRef(r)));
       for (const c of ops.putChallans || []) writes.push((b) => b.set(challanRef(c), strip(c)));
       for (const c of ops.deleteChallans || []) writes.push((b) => b.delete(challanRef(c)));
+      for (const x of ops.putDocuments || []) writes.push((b) => b.set(documentRef(x), strip(x)));
+      for (const { doc, bytes, mimeType } of ops.putDocumentFiles || []) {
+        writes.push(Object.assign((b) => b.set(documentFileRef(doc), { data: fs.Bytes.fromUint8Array(bytes), mimeType }), { heavy: true }));
+      }
+      for (const x of ops.deleteDocuments || []) {
+        writes.push((b) => b.delete(documentFileRef(x)));
+        writes.push((b) => b.delete(documentRef(x)));
+      }
       for (const e of ops.deleteEntries || []) writes.push((b) => b.delete(entryRef(e)));
       for (const v of ops.deleteVehicles || []) writes.push((b) => b.delete(vehicleRef(v.id)));
       await commit(writes);
