@@ -87,10 +87,44 @@ function manualSheet() {
   el.querySelector('.sheet-x').focus();
 }
 
+/**
+ * iPhone/iPad: Apple lets no website open "Add to Home Screen", so we point at the
+ * Share button instead: a bouncing arrow aimed at where it is in that browser.
+ * Safari on iPhone: bottom middle. Chrome/Edge on iPhone, and iPad: top right.
+ */
+function pointer() {
+  const p = platform();
+  const ipad = /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const top = p !== 'ios-safari' || ipad;
+  const el = document.createElement('div');
+  el.className = `install-pointer ${top ? 'ptr-top' : 'ptr-bottom'}`;
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-label', 'How to install GaadiKhata');
+  el.innerHTML = `
+    <div class="ptr-card">
+      <img src="assets/icons/icon-192.png" alt="" width="44" height="44">
+      <p><strong>Tap Share ${SHARE}</strong><span>then <b>Add to Home Screen</b> → <b>Add</b></span></p>
+      <button type="button" class="link-btn" data-steps>Show all steps</button>
+    </div>
+    <div class="ptr-arrow" aria-hidden="true"><svg viewBox="0 0 40 64"><path d="M20 4v48M6 40l14 16 14-16" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <button type="button" class="ptr-close" aria-label="Close">${icon('close')}</button>`;
+  document.body.append(el);
+  const close = () => el.remove();
+  el.addEventListener('click', (ev) => {
+    if (ev.target.closest('[data-steps]')) { close(); manualSheet(); return; }
+    close(); // tapping anywhere else closes it, so the Share button can be reached
+  });
+  el.querySelector('.ptr-close').focus();
+}
+
 /** Called by the Install buttons. */
 export async function startInstall() {
   const prompt = window.__gkInstall;
-  if (!prompt) { manualSheet(); return; }
+  if (!prompt) {
+    if (platform().startsWith('ios-') && platform() !== 'ios-firefox') pointer(); else manualSheet();
+    return;
+  }
   try {
     await prompt.prompt(); // the browser shows its own "Install app?" confirmation
     const { outcome } = await prompt.userChoice;

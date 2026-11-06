@@ -28,6 +28,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | v1.8: mobile-app layout. Home with spend card, vehicle chips and six icon tiles; tabs Home · Vehicles · Scan · Reports · More; app bar with back arrow, title and a reminders bell; new Reminders, Challans and More screens; two-tone icon set | ✅ Built |
 | v1.9: one-tap scan. After the snap: **Save · Full tank** / **Save · Partial** (pinned); saves straight away when the reading is clean, with an Edit link in the confirmation; opens the review (Confirm pinned) only when something needs checking | ✅ Built |
 | v2.0: **Install as an app (PWA)** (Install card on Home and in More, browser install prompt, manual steps per browser, hidden once installed, service worker `sw.js`); new capture button (camera with a fuel pump) and keyboard "Type it"; red Cancel on the scan sheet and review; back buttons; iPhone alignment fixes | ✅ Built |
+| v2.1: Install button on the sign-in screen; on iPhone/iPad an arrow points at the Share button ("Tap Share, then Add to Home Screen") instead of a list of steps | ✅ Built |
 | Maintenance analytics, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |

@@ -2,6 +2,7 @@
 
 import * as auth from '../auth.js';
 import { esc, icon } from '../ui.js';
+import { isInstalled, bindInstall } from '../install.js';
 
 const RESEND_SECONDS = 30;
 let timer = null;
@@ -53,8 +54,10 @@ export async function render(main) {
 
       <p class="hint login-note">GaadiKhata never sees your Google password and never stores SMS codes. Firebase handles sign-in.</p>
       <p class="login-note"><a class="btn btn-sm btn-insta" href="https://www.instagram.com/gaadikhata/" target="_blank" rel="noopener">${icon('instagram')}Need help? @gaadikhata</a></p>
+      ${isInstalled() ? '' : `<p class="login-note"><button type="button" class="btn btn-sm login-install" data-install><img src="assets/icons/icon-192.png" alt="" width="22" height="22">Install the GaadiKhata app</button></p>`}
       <p class="hint login-note">© 2026 GaadiKhata. All rights reserved.</p>
     </div>`;
+  bindInstall(main);
 
   const errBox = main.querySelector('.form-error');
   const showError = (msg) => { errBox.textContent = msg; errBox.hidden = !msg; if (msg) errBox.focus(); };
