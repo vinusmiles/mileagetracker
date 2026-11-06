@@ -9,6 +9,7 @@ import { analyseAll, monthlySpendChart, entryRow, compactRow, vehicleSubtitle, s
 import { vehicleReminders } from '../core/reminders.js';
 import { challanTotals } from '../core/challans.js';
 import { challansSection, bindChallansSection } from './challans.js';
+import { installCardHTML, bindInstall } from '../install.js';
 
 const newestFirst = (a, b) => b.entry.date.localeCompare(a.entry.date)
   || (b.entry.odometer - a.entry.odometer)
@@ -117,6 +118,8 @@ async function renderOverview(main, vehicles, entries, analyses, reminders, chal
       <span class="minibars" aria-hidden="true">${minibars}</span>
     </a>
 
+    ${installCardHTML()}
+
     <div class="vchip-row" aria-label="My vehicles">${chips}
       <a class="vchip-card vchip-add" href="#/vehicles/new" aria-label="Add a vehicle">${icon('plus')}</a>
     </div>
@@ -135,7 +138,7 @@ async function renderOverview(main, vehicles, entries, analyses, reminders, chal
     <section class="block">
       <div class="section-head"><h2>Recent fills</h2><a href="#/history">See all</a></div>
       ${recent ? `<ul class="rows">${recent}</ul>` : `<p class="muted">No fills yet. Tap <strong>Scan</strong> below to add your first.</p>`}
-    </section>`;
+    </section>`;  bindInstall(main);
 }
 
 function renderVehicle(main, v, analysis, entries, rem, vChallans = []) {

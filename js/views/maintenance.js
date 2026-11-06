@@ -458,8 +458,7 @@ async function renderForm(main, ctx, { mode, vehicle, vehicles, record, pages = 
         ${f('serviceCentre', textIn('serviceCentre'))}
       </div>
 
-      <h2 class="form-section">Odometer</h2>
-      ${f('odometerKm', `<input id="odometerKm" name="odometerKm" type="text" inputmode="numeric" autocomplete="off" value="${val(record.odometerKm)}">`, latest ? `Latest known: ${fmt.km(latest.km)} on ${fmt.date(latest.date)} (${latest.source === 'fuel' ? 'fuel fill' : 'service'}). Optional.` : 'Optional.')}
+      ${f('odometerKm', `<input id="odometerKm" name="odometerKm" type="text" inputmode="numeric" autocomplete="off" placeholder="${latest ? `Last ${fmt.kmNumber(latest.km)}` : 'km'}" value="${val(record.odometerKm)}">`)}
 
       <div data-items>${groupHTML()}</div>
 

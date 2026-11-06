@@ -27,6 +27,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | v1.7: no splash for returning signed-in users (and the sign-in library preloads), green section headings, smaller buttons, Upcoming service shown only within a month of being due | ✅ Built |
 | v1.8: mobile-app layout. Home with spend card, vehicle chips and six icon tiles; tabs Home · Vehicles · Scan · Reports · More; app bar with back arrow, title and a reminders bell; new Reminders, Challans and More screens; two-tone icon set | ✅ Built |
 | v1.9: one-tap scan. After the snap: **Save · Full tank** / **Save · Partial** (pinned); saves straight away when the reading is clean, with an Edit link in the confirmation; opens the review (Confirm pinned) only when something needs checking | ✅ Built |
+| v2.0: **Install as an app (PWA)** (Install card on Home and in More, browser install prompt, manual steps per browser, hidden once installed, service worker `sw.js`); new capture button (camera with a fuel pump) and keyboard "Type it"; red Cancel on the scan sheet and review; back buttons; iPhone alignment fixes | ✅ Built |
 | Maintenance analytics, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |
@@ -164,6 +165,13 @@ Bottom bar → **Maintenance** (Settings moved to the ⚙️ in the top bar).
 - Service records never count as fuel fills and never change mileage. Their odometer readings join the vehicle's odometer timeline for warnings.
 
 **After uploading v0.6, publish the updated `firestore.rules`** (Firebase → Firestore Database → Rules → paste → Publish). Without it, saving a service record shows "The cloud refused this change".
+
+## Install as an app (PWA)
+
+- `manifest.webmanifest` (name, icons incl. a maskable 512 px icon, standalone display) and `sw.js` (service worker) make GaadiKhata installable. The service worker is **network first**: online you always get the latest files; saved copies are used only offline. It never touches other sites (sign-in, database, photo reader).
+- Home shows an **Install GaadiKhata** card (also in More). Where the browser offers it (Android Chrome, Edge, Samsung Internet; desktop Chrome/Edge), the button opens the browser's own install confirmation. Elsewhere (iPhone Safari etc.) it shows short steps for that browser.
+- After installing: a confirmation, and the install buttons disappear. They come back if the app is removed.
+- **Updating:** when you change `sw.js`, bump `CACHE` (e.g. `gk-2.1`) so old saved copies are cleared.
 
 ## Service reminders
 

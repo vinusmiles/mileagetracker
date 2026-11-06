@@ -53,7 +53,11 @@ export async function render(main, { params, query, navigate }) {
 
   const vehicleField = vehicleSelect(vehicles, vehicle0.id);
 
+  // Back: to the scanner when you came from "Type it", else to where fills are listed
+  const backHref = query.get('from') === 'scan' ? '#/scan' : (editing ? '#/history' : '#/');
+  const backText = query.get('from') === 'scan' ? 'Scan' : (editing ? 'Reports' : 'Home');
   main.innerHTML = `
+    <a class="back" href="${backHref}">${icon('back')}${backText}</a>
     <h1 class="page-title" tabindex="-1">${editing ? 'Edit fuel entry' : 'Add fuel'}</h1>
     <form class="form" novalidate>
       <p class="form-error" role="alert" hidden></p>

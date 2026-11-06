@@ -265,14 +265,14 @@ async function renderReview(main, vehicles, ctx) {
   };
   const hintFor = (name, base = '') => {
     const parts = [];
-    if (notFound(name)) {
-      parts.push('<span class="not-found">Not found on the photo</span>');
-    }
+    // "Not found" is shown inside the empty box instead (keeps side-by-side fields aligned)
     if (base) parts.push(base);
     return parts.join(' ');
   };
   const f = (name, input, base) => {
+    if (notFound(name)) input = input.replace('<input ', '<input placeholder="Not found" ').replace('<select ', '<select data-nf ');
     let html = field(name, labels[name], input, hintFor(name, base));
+    if (notFound(name)) html = html.replace(`class="field" data-field="${name}"`, `class="field not-found-field" data-field="${name}"`);
     if (session.needsReview.has(name) && !session.confirmed.has(name)) html = html.replace(`class="field" data-field="${name}"`, `class="field needs-review" data-field="${name}"`);
     return html;
   };
@@ -281,6 +281,7 @@ async function renderReview(main, vehicles, ctx) {
   const thumbs = ['receipt', 'odometer'].filter((k) => session[k]).map((k) => `<button type="button" class="thumb" data-view aria-label="${k === 'receipt' ? 'Fuel bill' : 'Odometer'} photo, view larger"><img src="${session[k].url}" alt="${k === 'receipt' ? 'Fuel bill' : 'Odometer'} photo"></button>`).join('');
 
   main.innerHTML = `
+    <a class="back" href="#/">${icon('back')}Home</a>
     <h1 class="page-title" tabindex="-1">Check the details</h1>
     ${demo ? `<div class="notice notice-demo" role="note">${icon('warn')}<span><strong>Demo values</strong>: replace them with the real ones.</span></div>` : ''}
     <div class="review-head">
@@ -318,7 +319,7 @@ async function renderReview(main, vehicles, ctx) {
         <button class="btn btn-primary btn-block sticky-save" type="submit" data-save>${icon('check')}Confirm and save</button>
         <div class="split">
           <button class="btn" type="button" data-retake>${icon('camera')}Change photos</button>
-          <button class="btn btn-quiet" type="button" data-cancel>Cancel</button>
+          <button class="btn btn-cancel" type="button" data-cancel>${icon('close')}Cancel</button>
         </div>
       </div>
     </form>`;
@@ -502,9 +503,9 @@ function cameraOverlay(main, { title, hint, allowManual }) {
       </div>
       <div class="cam-bottom">
         <label class="cam-side">${icon('image')}<span>Upload</span><input type="file" accept="image/jpeg,image/png,image/webp" data-upload></label>
-        <button type="button" class="cam-shutter" data-shoot aria-label="Take photo"><span></span></button>
+        <button type="button" class="cam-shutter" data-shoot aria-label="Take photo"><svg viewBox="0 0 96 96" aria-hidden="true" focusable="false"><defs><linearGradient id="shg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0C6B32"/><stop offset="1" stop-color="#4BA707"/></linearGradient></defs><circle cx="48" cy="48" r="44" fill="url(#shg)"/><path d="M26 40a5.5 5.5 0 0 1 5.5-5.5h5.5l3.3-4.5h15.4l3.3 4.5h5.5A5.5 5.5 0 0 1 70 40v19.5a5.5 5.5 0 0 1-5.5 5.5h-33A5.5 5.5 0 0 1 26 59.5z" fill="#fff"/><circle cx="48" cy="50" r="11.5" fill="#0C6B32"/><rect x="43" y="43.5" width="7" height="12" rx="1.4" fill="#fff"/><rect x="44.4" y="45.2" width="4.2" height="3" rx=".6" fill="#0C6B32"/><path d="M50 47.5h1.3a1.1 1.1 0 0 1 1.1 1.1v3.7a1.1 1.1 0 0 0 2.2 0v-5.6l-1.5-1.7" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         ${allowManual
-          ? `<button type="button" class="cam-side" data-manual>${icon('fuel')}<span>Type it</span></button>`
+          ? `<button type="button" class="cam-side" data-manual>${icon('keyboard')}<span>Type it</span></button>`
           : `<button type="button" class="cam-side" data-torch hidden>${icon('bulb')}<span>Torch</span></button>`}
       </div>
       ${allowManual ? `<button type="button" class="cam-torch" data-torch hidden aria-label="Torch">${icon('bulb')}</button>` : ''}
@@ -594,7 +595,7 @@ export async function renderCamera(main, ctx) {
   resetSession();
   main.innerHTML = '<p class="loading" role="status">Opening camera…</p>';
   const first = await cameraOverlay(main, { title: 'Scan fuel bill', hint: 'Bill or pump screen inside the frame', allowManual: true });
-  if (first === 'manual') { ctx.navigate('/fuel/new?manual=1'); return; }
+  if (first === 'manual') { ctx.navigate('/fuel/new?manual=1&from=scan'); return; }
   if (!first) { ctx.navigate('/'); return; }
   session.receipt = first;
 
@@ -613,6 +614,7 @@ export async function renderCamera(main, ctx) {
 
   const chips = vehicles.map((v) => `<button type="button" class="vchip${v.id === session.vehicleId ? ' on' : ''}" data-veh="${esc(v.id)}">${icon(v.type)}${esc(v.nickname)}</button>`).join('');
   main.innerHTML = `
+    <a class="back" href="#/" data-cancel-scan>${icon('back')}Home</a>
     <h1 class="page-title" tabindex="-1">Almost done</h1>
     <div class="scan-sheet">
       <div class="scan-thumb"><img src="${first.url}" alt="Fuel bill photo"><span class="read-state" data-read-state>Reading bill…</span></div>
@@ -625,10 +627,11 @@ export async function renderCamera(main, ctx) {
         <button type="button" class="btn btn-upload" data-odo-photo>${icon('camera')}Photo</button>
       </div>
       <p class="hint" data-odo-hint>In a hurry? Skip it and add it later.</p>
-      <button type="button" class="link-btn review-first" data-review>Check details before saving</button>
+      <div class="sheet-links"><button type="button" class="link-btn" data-review>Check details first</button></div>
       <div class="quick-save" role="group" aria-label="Save">
         <button type="button" class="btn qs-btn qs-full" data-save-full>${icon('tankFull')}<span>Save<small>Full tank</small></span></button>
         <button type="button" class="btn qs-btn qs-partial" data-save-partial>${icon('tankHalf')}<span>Save<small>Partial fill</small></span></button>
+        <button type="button" class="btn btn-cancel qs-cancel" data-cancel-scan>${icon('close')}Cancel</button>
       </div>
     </div>`;
   const sheet = main.querySelector('.scan-sheet');
@@ -704,6 +707,10 @@ export async function renderCamera(main, ctx) {
   sheet.querySelector('[data-save-full]').addEventListener('click', (ev) => go(true, false, ev.currentTarget));
   sheet.querySelector('[data-save-partial]').addEventListener('click', (ev) => go(false, false, ev.currentTarget));
   sheet.querySelector('[data-review]').addEventListener('click', (ev) => go(null, true, ev.currentTarget));
+  // Cancel: drop the photos and the reading, back to Home (also the ‹ in the top bar)
+  const cancelScan = (ev) => { ev?.preventDefault(); resetSession(); ctx.navigate('/'); toast('Scan cancelled'); };
+  sheet.querySelector('[data-cancel-scan]').addEventListener('click', cancelScan);
+  document.querySelector('.appbar-back')?.addEventListener('click', function once(ev) { if (main.querySelector('.scan-sheet')) cancelScan(ev); this.removeEventListener('click', once); });
 }
 
 /** Why a scan cannot be saved in one tap (empty list = safe to save straight away). */

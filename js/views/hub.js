@@ -6,6 +6,7 @@ import { vehicleReminders } from '../core/reminders.js';
 import { challanTotals, portalsFor } from '../core/challans.js';
 import { todayStr } from '../core/dates.js';
 import { statusChip, dueLine } from './shared.js';
+import { isInstalled, bindInstall } from '../install.js';
 
 const enc = encodeURIComponent;
 
@@ -26,10 +27,15 @@ export async function renderMore(main) {
       ${menuItem('#/vehicles', 'car', 'green', 'My vehicles', 'Add or edit bikes and cars')}
     </ul>
     <ul class="menu">
+      ${isInstalled() ? '' : `<li data-install-item><button type="button" class="menu-item" data-install>
+        <span class="menu-icon tone-green"><img src="assets/icons/icon-192.png" alt="" width="34" height="34"></span>
+        <span class="menu-text"><strong>Install GaadiKhata</strong><small>Add the app to your home screen</small></span>
+        <span class="menu-chev" aria-hidden="true">›</span></button></li>`}
       ${menuItem('#/settings', 'settings', 'slate', 'Settings', 'Account, data, sample data')}
       ${menuItem('https://www.instagram.com/gaadikhata/', 'contact', 'pink', 'Contact us', 'Message @gaadikhata on Instagram', ' target="_blank" rel="noopener"')}
     </ul>
     <p class="muted center small">GaadiKhata · © 2026</p>`;
+  bindInstall(main);
 }
 
 export async function renderReminders(main) {

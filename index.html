@@ -20,6 +20,10 @@
   <link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <link rel="manifest" href="manifest.webmanifest">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="GaadiKhata">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap">
@@ -37,6 +41,11 @@
   <script type="module" src="js/app.js"></script>
 </head>
 <body class="booting">
+  <script>
+    // Keep the browser's install offer for our own "Install GaadiKhata" button
+    window.__gkInstall = null;
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__gkInstall = e; window.dispatchEvent(new Event('gk-installable')); });
+  </script>
   <script>
     // Signed in last time on this device? Skip the splash and show the app frame at once.
     try { if (localStorage.getItem('gk:signedIn') === '1') document.body.classList.remove('booting'); } catch (e) { /* private mode */ }

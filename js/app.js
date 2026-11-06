@@ -16,6 +16,7 @@ import * as smart from './views/smart.js';
 import * as maintenance from './views/maintenance.js';
 import * as challans from './views/challans.js';
 import * as hub from './views/hub.js';
+import { registerServiceWorker } from './install.js';
 
 const ROUTES = [
   { re: /^\/$/, view: dashboard.render, nav: 'dashboard', title: 'Home' },
@@ -245,3 +246,5 @@ async function attentionCount() {
   }
   return n;
 }
+
+registerServiceWorker();
