@@ -8,14 +8,14 @@
 
 export const UPI_APPS = [
   { id: 'phonepe', name: 'PhonePe', scheme: 'phonepe', pkg: 'com.phonepe.app' },
-  { id: 'gpay', name: 'GPay', scheme: 'tez', pkg: 'com.google.android.apps.nbu.paisa.user' },
+  { id: 'gpay', name: 'GPay', scheme: 'tez', path: 'upi/pay', pkg: 'com.google.android.apps.nbu.paisa.user' },
   { id: 'paytm', name: 'Paytm', scheme: 'paytmmp', pkg: 'net.one97.paytm' },
 ];
 
 /** Android link that opens the app, or its Play Store page. */
 export function appLink(app) {
   const store = `https://play.google.com/store/apps/details?id=${app.pkg}`;
-  return `intent://open#Intent;scheme=${app.scheme};package=${app.pkg};S.browser_fallback_url=${encodeURIComponent(store)};end`;
+  return `intent://${app.path || 'open'}#Intent;scheme=${app.scheme};package=${app.pkg};S.browser_fallback_url=${encodeURIComponent(store)};end`;
 }
 
 /** The app used last comes first; the rest keep their order. */

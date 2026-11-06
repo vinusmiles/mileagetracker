@@ -7,6 +7,7 @@
 
 import { toNum, isPos, round2 } from '../core/calc.js';
 import { isValidDateStr } from '../core/dates.js';
+import { findAmountRepair } from './repair.js';
 
 export const RECEIPT_FIELDS = ['fuelCompany', 'fuelStation', 'location', 'fuelType', 'transactionDate', 'transactionTime', 'quantityLitres', 'pricePerLitre', 'totalAmount', 'receiptNumber'];
 export const ODOMETER_FIELDS = ['odometerKm', 'dashboardRangeKm', 'dashboardTime'];
@@ -23,6 +24,7 @@ export function emptyExtraction({ receiptProvided = false, odometerProvided = fa
     billKind: null, // 'printed-bill' | 'pump-display' (a photo of the dispenser screen)
     odometerReadable: null, // false when no odometer could be found in the photo
     fieldsNeedingReview: [],
+    repair: null, // { field, from, to } when one misread digit was corrected
     sourceImages: { receiptProvided, odometerProvided },
   };
 }
@@ -74,6 +76,8 @@ export function normaliseExtraction(raw, sources) {
       set(f, n === null ? null : (isPos(n) ? round2(n) : undefined));
     }
     set('receiptNumber', text(r.receiptNumber, 40)); // text: receipt numbers can contain letters
+    out.repair = findAmountRepair(out);
+    if (out.repair) { out[out.repair.field] = out.repair.to; review.add(out.repair.field); }
     if (typeof r.receiptIsFuel === 'boolean') out.receiptIsFuel = r.receiptIsFuel;
     if (['printed-bill', 'pump-display'].includes(r.billKind)) out.billKind = r.billKind;
   }

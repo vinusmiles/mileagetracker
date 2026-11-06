@@ -32,6 +32,13 @@ const SHORT_CHECK = {
   'odometer-unreadable': 'Odometer not readable',
 };
 
+// A corrected reading is always shown for checking, never saved in one tap.
+function repairNote({ field, from, to }) {
+  const show = (x) => (field === 'quantityLitres' ? String(x) : fmt.moneyExact(x));
+  const name = { totalAmount: 'Total', quantityLitres: 'Quantity', pricePerLitre: 'Rate' }[field];
+  return `${name} corrected from ${show(from)} to ${show(to)} so that quantity × rate matches the total. Check it against the photo.`;
+}
+
 const LABELS = {
   date: 'Date', time: 'Time', fuelType: 'Fuel type', quantity: 'Fuel quantity', pricePerUnit: 'Price per unit (₹)',
   totalAmount: 'Total paid (₹)', fuelCompany: 'Fuel company', station: 'Fuel station', location: 'Location',
@@ -289,6 +296,7 @@ async function renderReview(main, vehicles, ctx) {
       <div class="thumbs" data-gallery>${thumbs}</div>
       <p><strong>${esc(vehicle.nickname)}</strong>${vehicle.registration ? ` <span class="muted">· ${esc(vehicle.registration)}</span>` : ''}</p>
     </div>
+    ${r.repair ? `<p class="notice notice-warn notice-slim" role="status">${icon('warn')}<span>${esc(repairNote(r.repair))}</span></p>` : ''}
     ${session.quickReason ? `<p class="notice notice-warn notice-slim" role="status">${icon('warn')}<span>${esc(session.quickReason)}</span></p>` : ''}
     <section class="checks checks-slim" data-checks aria-live="polite"></section>
     <form class="form" novalidate>
@@ -347,7 +355,8 @@ async function renderReview(main, vehicles, ctx) {
   const paintChecks = () => {
     const d = collect();
     session.values = { ...d };
-    const list = reviewChecks({ ...d, receiptIsFuel: r.receiptIsFuel, odometerReadable: r.odometerReadable, sourceImages: r.sourceImages }, { vehicle, entries, today: todayStr() });
+    const list = reviewChecks({ ...d, receiptIsFuel: r.receiptIsFuel, odometerReadable: r.odometerReadable, sourceImages: r.sourceImages }, { vehicle, entries, today: todayStr() })
+      .filter((c) => c.message !== session.quickReason); // already shown in full above
     checksBox.innerHTML = list.length
       ? `<ul>${list.map((c) => `<li class="check check-${c.level}" title="${esc(c.message)}">${icon(c.level === 'ok' ? 'check' : c.level === 'warn' ? 'warn' : 'info')}<span>${esc(SHORT_CHECK[c.code] || c.message)}</span></li>`).join('')}</ul>`
       : '';
@@ -717,7 +726,7 @@ export async function renderCamera(main, ctx) {
 /** Why a scan cannot be saved in one tap (empty list = safe to save straight away). */
 export function quickSaveBlockers({ entry, result, vehicle, entries, demo, forceReview, readFailed }) {
   const out = [];
-  if (forceReview) out.push('');
+  if (forceReview || result.repair) out.push('');
   if (demo) out.push('Demo reader: check the made-up values.');
   if (readFailed) out.push('The bill could not be read. Fill in the details.');
   if (!(entry.quantity > 0) || !(entry.totalAmount > 0)) out.push('Some amounts could not be read. Please check them.');

@@ -30,6 +30,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | v2.0: **Install as an app (PWA)** (Install card on Home and in More, browser install prompt, manual steps per browser, hidden once installed, service worker `sw.js`); new capture button (camera with a fuel pump) and keyboard "Type it"; red Cancel on the scan sheet and review; back buttons; iPhone alignment fixes | ✅ Built |
 | v2.1: Install button on the sign-in screen; on iPhone/iPad an arrow points at the Share button ("Tap Share, then Add to Home Screen") instead of a list of steps | ✅ Built |
 | v2.2: **Pay with UPI app** on the Saved message (opens PhonePe, GPay or Paytm; no payee or payment details). Beta: open the site once with `?beta=1` to see it, `?beta=0` to hide it | ✅ Built, to check on a real phone |
+| v2.3: scan safety net. When litres × rate does not match the total, one misread digit is corrected from the bill's own sum and shown for checking, never saved in one tap. Reader 0.7.1 reads pump digits more carefully | ✅ Built |
 | Maintenance analytics, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |
