@@ -5,6 +5,7 @@
 
 import * as store from '../store.js';
 import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, mileageHint, req, vehicleSelect } from '../ui.js';
+import { payAction } from '../upi.js';
 import { FUEL_TYPES, LIMITS, fuelUnit, fuelUnitName, perUnitWord } from '../core/model.js';
 import { validateEntry } from '../core/validate.js';
 import { toNum, sortEntries, analyseVehicle } from '../core/calc.js';
@@ -428,11 +429,11 @@ async function renderReview(main, vehicles, ctx) {
 
     await busy(saveBtn, 'Saving…', async () => {
       try {
-        await store.saveEntry(entry);
+        const saved = await store.saveEntry(entry);
         store.setPref('lastVehicle', vehicle.id);
         const { summary } = analyseVehicle(await store.listEntries(vehicle.id), vehicle);
         resetSession();
-        toast(summary.status === 'ok' ? 'Fuel entry saved' : `Fuel entry saved. ${mileageHint(summary)}`);
+        toast(summary.status === 'ok' ? 'Fuel entry saved' : `Fuel entry saved. ${mileageHint(summary)}`, 'ok', payAction(saved.totalAmount));
         ctx.navigate(`/?v=${encodeURIComponent(vehicle.id)}`);
       } catch (err) {
         showFieldErrors(form, { _form: err.message });
@@ -697,7 +698,7 @@ export async function renderCamera(main, ctx) {
       const saved = await store.saveEntry(entry);
       resetSession();
       ctx.navigate('/');
-      toast(`Saved ${fmt.moneyExact(saved.totalAmount)} · ${fmt.qty(saved.quantity, saved.unit || fuelUnit(vehicle.fuelType))} · ${vehicle.nickname}`, 'ok', { label: 'Edit', href: `#/fuel/${encodeURIComponent(saved.id)}/edit` });
+      toast(`Saved ${fmt.moneyExact(saved.totalAmount)} · ${fmt.qty(saved.quantity, saved.unit || fuelUnit(vehicle.fuelType))} · ${vehicle.nickname}`, 'ok', [{ label: 'Edit', href: `#/fuel/${encodeURIComponent(saved.id)}/edit` }, payAction(saved.totalAmount)]);
     } catch (err) {
       session.quickReason = err.message;
       btn.innerHTML = label;

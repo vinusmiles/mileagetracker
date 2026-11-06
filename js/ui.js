@@ -72,20 +72,22 @@ export function mileageHint(summary) {
 export function toast(message, kind = 'ok', action = null) {
   const box = document.getElementById('toasts');
   const el = document.createElement('div');
-  el.className = `toast toast-${kind}${action ? ' toast-action' : ''}`;
+  const actions = [action].flat().filter(Boolean); // one action, or a list
+  const pay = actions.some((a) => a.onClick);
+  el.className = `toast toast-${kind}${actions.length ? ' toast-action' : ''}${pay ? ' toast-pay' : ''}`;
   el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
   const text = document.createElement('span');
   text.textContent = message;
   el.append(text);
-  if (action) {
-    const a = document.createElement('a');
-    a.href = action.href;
-    a.textContent = action.label;
-    a.addEventListener('click', () => el.remove());
+  for (const item of actions) {
+    const a = document.createElement(item.onClick ? 'button' : 'a');
+    if (item.onClick) a.type = 'button'; else a.href = item.href;
+    a.textContent = item.label;
+    a.addEventListener('click', () => { el.remove(); item.onClick?.(); });
     el.append(a);
   }
   box.append(el);
-  const life = action ? 6500 : 3200; // time to tap Edit
+  const life = pay ? 10000 : actions.length ? 6500 : 3200; // time to tap the action
   setTimeout(() => el.classList.add('toast-out'), life);
   setTimeout(() => el.remove(), life + 400);
 }

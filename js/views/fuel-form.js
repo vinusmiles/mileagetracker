@@ -3,6 +3,7 @@
 
 import * as store from '../store.js';
 import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req, vehicleSelect } from '../ui.js';
+import { payAction } from '../upi.js';
 import { fuelUnit, LIMITS, perUnitWord } from '../core/model.js';
 import { validateEntry } from '../core/validate.js';
 import { toNum, deriveAmounts, sortEntries } from '../core/calc.js';
@@ -207,9 +208,9 @@ export async function render(main, { params, query, navigate }) {
 
     await busy(submit, 'Saving…', async () => {
       try {
-        await store.saveEntry(data);
+        const saved = await store.saveEntry(data);
         store.setPref('lastVehicle', data.vehicleId);
-        toast(editing ? 'Fuel entry updated' : 'Fuel entry saved');
+        toast(editing ? 'Fuel entry updated' : 'Fuel entry saved', 'ok', editing ? null : payAction(saved.totalAmount));
         navigate(`/?v=${encodeURIComponent(data.vehicleId)}`);
       } catch (err) {
         showFieldErrors(form, { _form: err.message });
