@@ -1,11 +1,9 @@
 // "Pay with UPI app": a button on the Saved message that opens a sheet of UPI apps.
-// Beta: visible only in a browser that has opened the site with ?beta=1.
 
-import { appLink, betaState, orderApps } from './core/upi.js';
+import { appLink, orderApps } from './core/upi.js';
 import { platform } from './install.js';
 import { esc, fmt, icon } from './ui.js';
 
-const BETA_KEY = 'gk:beta';
 const LAST_KEY = 'gk:upiLast';
 
 function read(key) {
@@ -15,9 +13,6 @@ function read(key) {
 function write(key, value) {
   try { localStorage.setItem(key, value); } catch { /* the choice just isn't remembered */ }
 }
-
-const beta = betaState(location.search, read(BETA_KEY));
-write(BETA_KEY, beta ? '1' : '0');
 
 function openSheet(amount) {
   const android = platform().startsWith('android-');
@@ -57,7 +52,7 @@ function openSheet(amount) {
   el.querySelector('.sheet-x').focus();
 }
 
-/** The toast action for a saved fuel entry, or null when beta is off. */
+/** The toast action for a saved fuel entry. */
 export function payAction(amount) {
-  return beta ? { label: 'Pay with UPI app', onClick: () => openSheet(amount) } : null;
+  return { label: 'Pay with UPI app', onClick: () => openSheet(amount) };
 }

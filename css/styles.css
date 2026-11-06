@@ -1233,7 +1233,7 @@ select:not([multiple]) { background: var(--surface) url("data:image/svg+xml,%3Cs
 @keyframes ptr-up { 0%, 100% { transform: rotate(180deg) translateY(0); } 50% { transform: rotate(180deg) translateY(10px); } }
 @media (prefers-reduced-motion: reduce) { .ptr-arrow { animation: none !important; } }
 
-/* Pay with UPI app (v2.2, beta) */
+/* Pay with UPI app */
 .toast-pay { flex-wrap: wrap; }
 .toast-pay > span { flex: 1 1 100%; }
 .toast-pay button { min-height: 40px; padding: 0 .9rem; border: 0; border-radius: 999px; background: #9BE07A; color: #0B2A14; font: inherit; font-weight: 700; }
