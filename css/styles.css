@@ -1239,7 +1239,7 @@ select:not([multiple]) { background: var(--surface) url("data:image/svg+xml,%3Cs
 .upi-app img { display: block; height: 32px; max-width: 70%; }
 .upi-note { margin: .4rem 0 1rem; font-size: 1.05rem; }
 
-/* Documents (beta) */
+/* Documents */
 .doc-add { margin-bottom: 1.25rem; }
 .doc-group { margin-bottom: .7rem; border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
 .doc-group summary { display: flex; justify-content: space-between; align-items: center; gap: .75rem; padding: .85rem 1rem; cursor: pointer; }

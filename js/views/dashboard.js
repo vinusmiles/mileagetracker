@@ -10,7 +10,6 @@ import { vehicleReminders } from '../core/reminders.js';
 import { challanTotals } from '../core/challans.js';
 import { challansSection, bindChallansSection } from './challans.js';
 import { documentsSection } from './documents.js';
-import { betaOn } from '../beta.js';
 import { expiryAlerts, expiryStatus, expiryText } from '../core/documents.js';
 import { installCardHTML, bindInstall } from '../install.js';
 
@@ -132,7 +131,7 @@ async function renderOverview(main, vehicles, entries, analyses, reminders, chal
       ${tile('#/scan', 'scan', 'green', 'Scan bill')}
       ${tile(`#/fuel/new?manual=1&v=${firstV}`, 'fuel', 'amber', 'Add fuel')}
       ${tile(`#/maintenance?v=${firstV}`, 'service', 'purple', 'Service')}
-      ${betaOn ? tile('#/documents', 'document', 'blue', 'Documents') : tile('#/history', 'reports', 'blue', 'Reports')}
+      ${tile('#/documents', 'document', 'blue', 'Documents')}
       ${tile('#/challans', 'challan', 'red', 'Challans')}
       ${tile('#/reminders', 'reminders', 'teal', 'Reminders')}
     </nav>
@@ -222,7 +221,7 @@ function alertsHTML(vehicles, reminders, challanList = [], docs = []) {
         <span><strong>${esc(v.nickname)}: service ${p.status === 'overdue' ? 'overdue' : 'due soon'}</strong>
         <small>${esc(p.source === 'centre' ? 'Service centre: ' : 'Suggested: ')}${esc(dueLine(p))}</small></span></a></li>`);
   const today = todayStr();
-  const papers = (betaOn ? expiryAlerts(docs, today) : []).map((d) => `
+  const papers = expiryAlerts(docs, today).map((d) => `
       <li><a class="${expiryStatus(d, today) === 'expired' ? 'al-overdue' : ''}" href="#/document/${encodeURIComponent(d.id)}">${icon('warn')}
         <span><strong>${esc(vehicles.find((v) => v.id === d.vehicleId)?.nickname || 'Me')}: ${esc(expiryText(d, today))}</strong>
         <small>Valid till ${esc(fmt.date(d.expiryDate))}</small></span></a></li>`);

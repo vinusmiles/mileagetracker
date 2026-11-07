@@ -1,8 +1,7 @@
 // Documents: copies of RC, insurance, pollution, driving licence and medical certificate,
-// front and back, with expiry reminders. Beta. Files are loaded only when opened.
+// front and back, with expiry reminders. Files are loaded only when opened.
 
 import * as store from '../store.js';
-import { betaOn } from '../beta.js';
 import { esc, fmt, icon, field, showFieldErrors, busy, toast, confirmDialog, req, openImageViewer } from '../ui.js';
 import { DOC_TYPES, docLabel, documentSlots, expiryStatus, fileProblem, looksLikePdf, MAX_FILE_BYTES, sideInfo, sideName, sidesFor, typesFor, validateDocument } from '../core/documents.js';
 import { todayStr } from '../core/dates.js';
@@ -41,7 +40,6 @@ function group(title, docs, vehicleId, today, open) {
 
 /** Section for the vehicle page. */
 export function documentsSection(vehicle, docs) {
-  if (!betaOn) return '';
   return `
     <section class="block" id="documents">
       <div class="section-head"><h2>Documents</h2><a href="#/documents?v=${enc(vehicle.id)}">See all</a></div>
@@ -50,7 +48,6 @@ export function documentsSection(vehicle, docs) {
 }
 
 export async function renderList(main, { query, navigate }) {
-  if (!betaOn) { navigate('/', { replace: true }); return; }
   const [vehicles, docs] = await Promise.all([store.listVehicles(), store.listDocuments()]);
   const today = todayStr();
   const asked = query.get('v');
@@ -94,7 +91,6 @@ async function readFile(file) {
 const sizeText = (n) => (n >= 100000 ? `${(n / 1000000).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1000))} KB`);
 
 export async function renderForm(main, { params, query, navigate }) {
-  if (!betaOn) { navigate('/', { replace: true }); return; }
   const editing = params[0] ? await store.getDocument(params[0]) : null;
   if (params[0] && !editing) { navigate('/documents', { replace: true }); return; }
   const vehicles = await store.listVehicles();
@@ -185,7 +181,6 @@ export async function renderForm(main, { params, query, navigate }) {
 }
 
 export async function renderDetail(main, { params, navigate }) {
-  if (!betaOn) { navigate('/', { replace: true }); return; }
   const doc = await store.getDocument(params[0]);
   if (!doc) { navigate('/documents', { replace: true }); return; }
   const vehicle = doc.vehicleId ? await store.getVehicle(doc.vehicleId) : null;

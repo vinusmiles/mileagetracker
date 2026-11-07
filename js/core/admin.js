@@ -2,7 +2,7 @@
 // Each app writes only counts about its own user; fuel, service and document records
 // stay private. Sample data is never counted.
 
-export const APP_VERSION = '2.7';
+export const APP_VERSION = '2.8';
 
 const dayMs = 864e5;
 

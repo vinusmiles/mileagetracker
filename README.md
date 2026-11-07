@@ -34,6 +34,7 @@ Plain HTML, CSS and JavaScript (ES modules, no build step), hosted on GitHub Pag
 | v2.5: **Documents** (beta, `?beta=1`): RC, insurance, pollution, driving licence and others, as photos or PDFs up to 1 MB, kept in Firestore, with expiry alerts in Reminders and on Home. Needs the new `firestore.rules` published | ✅ Built, to check on a real phone |
 | v2.6: average mileage after a partial fill, mileage on My vehicles, one button colour scheme, challan number copied when the official site opens. Beta Documents: grouped tiles, front and back, Medical Certificate. Needs the new `firestore.rules` published | ✅ Built |
 | v2.7: owner's admin page at `#/admin` (users, activity, sample data left out; each app reports only name, email and counts). Beta Documents: small chips, four images for Medical Certificate. Needs the new `firestore.rules` published | ✅ Built |
+| v2.8: **Documents** for all users (no longer beta); Home shows Documents instead of Reports, which stays in the bottom bar | ✅ Built |
 | Maintenance analytics, production tests | To do |
 | Phone (SMS OTP) sign-in | Built, switched off (needs Firebase Blaze plan) |
 | Phase 3: deployment checklist | To do |

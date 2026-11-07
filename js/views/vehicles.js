@@ -1,7 +1,6 @@
 // My vehicles: list, add, edit, delete.
 
 import { displayMileage } from '../core/calc.js';
-import { betaOn } from '../beta.js';
 import { fuelUnit } from '../core/model.js';
 import * as store from '../store.js';
 import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req, ricon } from '../ui.js';
@@ -43,7 +42,7 @@ export async function renderList(main) {
         <div class="actions actions-tight vcard-actions">
           <a class="vbtn vbtn-fuel" href="#/fuel/new?v=${id}">${icon('plus')}Fuel</a>
           <a class="vbtn vbtn-service" href="#/service/add?v=${id}">${icon('plus')}Service</a>
-          ${betaOn ? `<a class="vbtn vbtn-docs" href="#/documents?v=${id}">View documents</a>` : ''}
+          <a class="vbtn vbtn-docs" href="#/documents?v=${id}">View documents</a>
         </div>
       </li>`;
   }).join('');

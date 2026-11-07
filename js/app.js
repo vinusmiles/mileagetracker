@@ -18,7 +18,6 @@ import * as challans from './views/challans.js';
 import * as documents from './views/documents.js';
 import * as admin from './views/admin.js';
 import { APP_VERSION, deviceName } from './core/admin.js';
-import { betaOn } from './beta.js';
 import { expiryAlerts } from './core/documents.js';
 import * as hub from './views/hub.js';
 import { isInstalled, registerServiceWorker } from './install.js';
@@ -251,7 +250,7 @@ async function attentionCount() {
   const { todayStr } = await import('./core/dates.js');
   const [vehicles, entries, services, recs, ch] = await Promise.all([store.listVehicles(), store.listEntries(), store.listServices(), store.listRecommendations(), store.listChallans()]);
   let n = ch.filter((c) => c.status !== 'paid').length;
-  if (betaOn) n += expiryAlerts(await store.listDocuments(), todayStr()).length;
+  n += expiryAlerts(await store.listDocuments(), todayStr()).length;
   for (const v of vehicles) {
     const p = vehicleReminders(v, { services: services.filter((s) => s.vehicleId === v.id), entries: entries.filter((e) => e.vehicleId === v.id), recommendations: recs.filter((r) => r.vehicleId === v.id), today: todayStr() }).primary;
     if (p && (p.status === 'overdue' || p.status === 'due-soon')) n += 1;
