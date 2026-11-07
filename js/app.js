@@ -16,16 +16,19 @@ import * as smart from './views/smart.js';
 import * as maintenance from './views/maintenance.js';
 import * as challans from './views/challans.js';
 import * as documents from './views/documents.js';
+import * as admin from './views/admin.js';
+import { APP_VERSION, deviceName } from './core/admin.js';
 import { betaOn } from './beta.js';
 import { expiryAlerts } from './core/documents.js';
 import * as hub from './views/hub.js';
-import { registerServiceWorker } from './install.js';
+import { isInstalled, registerServiceWorker } from './install.js';
 
 const ROUTES = [
   { re: /^\/$/, view: dashboard.render, nav: 'dashboard', title: 'Home' },
   { re: /^\/more$/, view: hub.renderMore, nav: 'more', title: 'More' },
   { re: /^\/reminders$/, view: hub.renderReminders, nav: 'more', title: 'Reminders' },
   { re: /^\/challans$/, view: hub.renderChallans, nav: 'more', title: 'Challans' },
+  { re: /^\/admin$/, view: admin.render, nav: 'more', title: 'Admin' },
   { re: /^\/documents$/, view: documents.renderList, nav: 'more', title: 'Documents' },
   { re: /^\/document\/new$/, view: documents.renderForm, nav: 'more', title: 'Add document' },
   { re: /^\/document\/([^/]+)\/edit$/, view: documents.renderForm, nav: 'more', title: 'Replace document' },
@@ -172,6 +175,7 @@ async function useAccount(user) {
   showMessage('<p class="loading" role="status">Loading your data…</p>');
   try {
     await store.useBackend(createFirestoreBackend(auth.firebase(), user.uid));
+    store.publishUsage({ name: user.displayName || null, email: user.email || user.phoneNumber || null, appVersion: APP_VERSION, device: deviceName(navigator.userAgent), installed: isInstalled() });
     lastLoad = Date.now();
     return true;
   } catch (err) {

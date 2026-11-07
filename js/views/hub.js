@@ -94,7 +94,7 @@ export async function renderChallans(main) {
       ${t.paidCount ? `<div><b>${fmt.money(t.paidAmount)}</b> <span>paid</span></div>` : ''}
     </div>
     <section class="block"><h2>Check online</h2>
-      <ul class="menu">${vehicles.map((v) => `<li><a class="menu-item" href="${portalsFor(v.registration)[0].url}" target="_blank" rel="noopener">
+      <ul class="menu">${vehicles.map((v) => `<li><a class="menu-item" href="${portalsFor(v.registration)[0].url}" target="_blank" rel="noopener" data-copy-open="${esc(v.registration || '')}">
         <span class="menu-icon tone-${v.type === 'two' ? 'teal' : 'green'}">${ricon(v.type === 'two' ? 'bike' : 'car', v.type === 'two' ? 'teal' : 'green')}</span>
         <span class="menu-text"><strong>${esc(v.nickname)}</strong><small>${esc(v.registration || 'Add the number in Edit vehicle')} · ${esc(portalsFor(v.registration)[0].name)}</small></span>
         <span class="menu-chev" aria-hidden="true">↗</span></a></li>`).join('')}</ul>

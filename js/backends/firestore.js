@@ -24,7 +24,7 @@ export function createFirestoreBackend(fb, uid) {
   const challanRef = (x) => fs.doc(userRef, 'vehicles', x.vehicleId, 'challans', x.id);
   const pageRef = (x, i) => fs.doc(userRef, 'vehicles', x.vehicleId, 'serviceRecords', x.id, 'pages', String(i));
   const documentRef = (x) => fs.doc(userRef, 'documents', x.id);
-  const documentFileRef = (x) => fs.doc(userRef, 'documents', x.id, 'file', 'content');
+  const documentFileRef = (x, side = 'front') => fs.doc(userRef, 'documents', x.id, 'file', side === 'front' ? 'content' : side);
   const strip = (x) => JSON.parse(JSON.stringify(x)); // drops undefined values
 
   async function commit(writes) {
@@ -72,9 +72,20 @@ export function createFirestoreBackend(fb, uid) {
       return snap.docs.map((d) => d.data()).sort((a, b) => a.index - b.index).map((p) => p.dataUrl);
     },
 
+    /** Name, email and counts for the owner's admin page; no records. */
+    async saveUsage(usage) {
+      await fs.setDoc(userRef, strip(usage), { merge: true });
+    },
+
+    /** Refused by the security rules unless this is the owner. */
+    async listUsers() {
+      const snap = await fs.getDocs(fs.collection(db, 'users'));
+      return snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+    },
+
     /** A document's file is loaded only when it is opened. */
-    async loadDocumentFile(doc) {
-      const snap = await fs.getDoc(documentFileRef(doc));
+    async loadDocumentFile(doc, side = 'front') {
+      const snap = await fs.getDoc(documentFileRef(doc, side));
       if (!snap.exists()) return null;
       const { data, mimeType } = snap.data();
       return { bytes: data.toUint8Array(), mimeType };
@@ -99,11 +110,12 @@ export function createFirestoreBackend(fb, uid) {
       for (const c of ops.putChallans || []) writes.push((b) => b.set(challanRef(c), strip(c)));
       for (const c of ops.deleteChallans || []) writes.push((b) => b.delete(challanRef(c)));
       for (const x of ops.putDocuments || []) writes.push((b) => b.set(documentRef(x), strip(x)));
-      for (const { doc, bytes, mimeType } of ops.putDocumentFiles || []) {
-        writes.push(Object.assign((b) => b.set(documentFileRef(doc), { data: fs.Bytes.fromUint8Array(bytes), mimeType }), { heavy: true }));
+      for (const { doc, side, bytes, mimeType } of ops.putDocumentFiles || []) {
+        writes.push(Object.assign((b) => b.set(documentFileRef(doc, side), { data: fs.Bytes.fromUint8Array(bytes), mimeType }), { heavy: true }));
       }
       for (const x of ops.deleteDocuments || []) {
         writes.push((b) => b.delete(documentFileRef(x)));
+        for (const side of ['back', 'page3', 'page4']) writes.push((b) => b.delete(documentFileRef(x, side)));
         writes.push((b) => b.delete(documentRef(x)));
       }
       for (const e of ops.deleteEntries || []) writes.push((b) => b.delete(entryRef(e)));

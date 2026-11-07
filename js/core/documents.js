@@ -1,4 +1,4 @@
-// Documents: RC, insurance, pollution, driving licence and others. Pure code: tested in /tests.
+// Documents: RC, insurance, pollution, driving licence, medical certificate. Pure code: tested in /tests.
 // A document belongs to a vehicle, or to the person when vehicleId is null.
 
 import { addDays, isValidDateStr } from './dates.js';
@@ -8,7 +8,8 @@ export const DOC_TYPES = {
   insurance: { label: 'Insurance', owner: 'vehicle' },
   puc: { label: 'Pollution (PUC)', owner: 'vehicle' },
   licence: { label: 'Driving licence', owner: 'person' },
-  other: { label: 'Other', owner: 'any' },
+  medical: { label: 'Medical Certificate', owner: 'person', pages: true },
+  other: { label: 'Other', owner: 'any', retired: true }, // no longer offered; early beta files stay readable
 };
 
 export const MAX_FILE_BYTES = 1000000; // 1 MB; also enforced in firestore.rules
@@ -17,8 +18,34 @@ export const FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application
 const SOON_DAYS = 30;
 
 export const typesFor = (vehicleId) => Object.entries(DOC_TYPES)
-  .filter(([, t]) => t.owner === 'any' || t.owner === (vehicleId ? 'vehicle' : 'person'))
+  .filter(([, t]) => !t.retired && t.owner === (vehicleId ? 'vehicle' : 'person'))
   .map(([value, t]) => ({ value, label: t.label }));
+
+/** Which images a document can have. */
+export function sidesFor(type) {
+  if (type === 'other') return ['front'];
+  return DOC_TYPES[type]?.pages ? ['front', 'back', 'page3', 'page4'] : ['front', 'back'];
+}
+
+export const sideName = (type, side) => (DOC_TYPES[type]?.pages
+  ? `Image ${{ front: 1, back: 2, page3: 3, page4: 4 }[side]}`
+  : { front: 'Front', back: 'Back' }[side]);
+
+const SIDE_PREFIX = { back: 'back', page3: 'page3', page4: 'page4' };
+const sideKey = (side, name) => (SIDE_PREFIX[side] ? `${SIDE_PREFIX[side]}${name}` : name[0].toLowerCase() + name.slice(1));
+
+/** The details of one stored image, or null. */
+export function sideInfo(doc, side) {
+  const fileName = doc[sideKey(side, 'FileName')];
+  return fileName ? { fileName, mimeType: doc[sideKey(side, 'MimeType')], fileSize: doc[sideKey(side, 'FileSize')] } : null;
+}
+
+/** The fields to store for one image. */
+export const sideFields = (side, file) => ({
+  [sideKey(side, 'FileName')]: String(file.fileName || 'document').slice(0, 120),
+  [sideKey(side, 'MimeType')]: file.mimeType,
+  [sideKey(side, 'FileSize')]: file.size,
+});
 
 export const docLabel = (d) => (d.type === 'other' ? d.title || 'Other' : DOC_TYPES[d.type]?.label || 'Document');
 
@@ -75,7 +102,7 @@ export function expiryAlerts(docs, today) {
 /** One line per expected type, plus any others, for a vehicle or the person. */
 export function documentSlots(docs, vehicleId) {
   const mine = docs.filter((d) => (d.vehicleId || null) === (vehicleId || null));
-  const expected = typesFor(vehicleId).filter((t) => t.value !== 'other');
+  const expected = typesFor(vehicleId);
   return [
     ...expected.map((t) => ({ type: t.value, label: t.label, doc: mine.find((d) => d.type === t.value) || null })),
     ...mine.filter((d) => d.type === 'other').map((d) => ({ type: 'other', label: docLabel(d), doc: d })),

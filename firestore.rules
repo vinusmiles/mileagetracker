@@ -5,8 +5,9 @@ rules_version = '2';
 //
 // Each signed-in user can read and write only their own tree:
 //   users/{uid}/vehicles/{vehicleId}/(fuelEntries | serviceRecords | recommendations | challans)
-//   users/{uid}/documents/{docId}/file/content
-// Everything else is denied. Writes are also checked for the right fields,
+//   users/{uid}/documents/{docId}/file/(content | back | page3 | page4)
+// The owner can also read users/{uid} (name, email and counts for the admin page),
+// but never anything below it. Everything else is denied. Writes are also checked for the right fields,
 // types and sensible ranges, so a modified browser cannot store junk.
 
 service cloud.firestore {
@@ -14,6 +15,14 @@ service cloud.firestore {
 
     function isOwner(uid) {
       return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == 'VAKGsSOEI4TFHEyuZSsZ53SL1262';
+    }
+
+    function count(d, key) {
+      return !(key in d) || (d[key] is int && d[key] >= 0 && d[key] <= 100000);
     }
 
     function shortString(v, max) {
@@ -25,9 +34,15 @@ service cloud.firestore {
     }
 
     function validUser(d) {
-      return d.keys().hasOnly(['createdAt', 'updatedAt'])
+      return d.keys().hasOnly(['createdAt', 'updatedAt', 'name', 'email', 'vehicleCount', 'twoWheelers', 'fourWheelers',
+                               'fuelCount', 'scanCount', 'serviceCount', 'documentCount', 'appVersion', 'device', 'installed'])
         && optionalString(d, 'createdAt', 40)
-        && optionalString(d, 'updatedAt', 40);
+        && optionalString(d, 'updatedAt', 40)
+        && optionalString(d, 'name', 120) && optionalString(d, 'email', 200)
+        && optionalString(d, 'appVersion', 20) && optionalString(d, 'device', 20)
+        && (!('installed' in d) || d.installed is bool)
+        && count(d, 'vehicleCount') && count(d, 'twoWheelers') && count(d, 'fourWheelers')
+        && count(d, 'fuelCount') && count(d, 'scanCount') && count(d, 'serviceCount') && count(d, 'documentCount');
     }
 
     function validVehicle(d, vehicleId) {
@@ -129,17 +144,28 @@ service cloud.firestore {
         && shortString(d.createdAt, 40) && shortString(d.updatedAt, 40);
     }
 
+    function extraImage(d, nameKey, typeKey, sizeKey) {
+      return optionalString(d, nameKey, 120)
+        && (!(typeKey in d) || d[typeKey] in ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
+        && (!(sizeKey in d) || (d[sizeKey] is int && d[sizeKey] > 0 && d[sizeKey] <= 1000000));
+    }
+
     function validDocument(d, docId) {
       return d.keys().hasAll(['id', 'type', 'fileName', 'mimeType', 'fileSize', 'createdAt', 'updatedAt'])
-        && d.keys().hasOnly(['id', 'vehicleId', 'type', 'title', 'expiryDate', 'fileName', 'mimeType', 'fileSize', 'createdAt', 'updatedAt'])
+        && d.keys().hasOnly(['id', 'vehicleId', 'type', 'title', 'expiryDate', 'fileName', 'mimeType', 'fileSize',
+                             'backFileName', 'backMimeType', 'backFileSize', 'page3FileName', 'page3MimeType', 'page3FileSize',
+                             'page4FileName', 'page4MimeType', 'page4FileSize', 'createdAt', 'updatedAt'])
         && d.id == docId
         && optionalString(d, 'vehicleId', 60)
-        && d.type in ['rc', 'insurance', 'puc', 'licence', 'other']
+        && d.type in ['rc', 'insurance', 'puc', 'licence', 'medical', 'other']
         && optionalString(d, 'title', 60)
         && (!('expiryDate' in d) || d.expiryDate == null || (d.expiryDate is string && d.expiryDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
         && shortString(d.fileName, 120)
         && d.mimeType in ['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
         && d.fileSize is int && d.fileSize > 0 && d.fileSize <= 1000000
+        && extraImage(d, 'backFileName', 'backMimeType', 'backFileSize')
+        && extraImage(d, 'page3FileName', 'page3MimeType', 'page3FileSize')
+        && extraImage(d, 'page4FileName', 'page4MimeType', 'page4FileSize')
         && shortString(d.createdAt, 40) && shortString(d.updatedAt, 40);
     }
 
@@ -151,7 +177,8 @@ service cloud.firestore {
     }
 
     match /users/{uid} {
-      allow read, delete: if isOwner(uid);
+      allow read: if isOwner(uid) || isAdmin();
+      allow delete: if isOwner(uid);
       allow create, update: if isOwner(uid) && validUser(request.resource.data);
 
       // Copies of RC, insurance, licence and so on: details, then the file (loaded only when opened).
@@ -161,7 +188,7 @@ service cloud.firestore {
 
         match /file/{fileId} {
           allow read, delete: if isOwner(uid);
-          allow create, update: if isOwner(uid) && fileId == 'content' && validDocumentFile(request.resource.data);
+          allow create, update: if isOwner(uid) && fileId in ['content', 'back', 'page3', 'page4'] && validDocumentFile(request.resource.data);
         }
       }
 

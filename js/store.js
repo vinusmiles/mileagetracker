@@ -16,7 +16,8 @@
 import { buildDemoData } from './demo-data.js';
 import { todayStr } from './core/dates.js';
 import { fuelUnit } from './core/model.js';
-import { docLabel, fileProblem, MAX_DOCS_PER_OWNER, validateDocument } from './core/documents.js';
+import { docLabel, fileProblem, MAX_DOCS_PER_OWNER, sideFields, validateDocument } from './core/documents.js';
+import { usageSummary } from './core/admin.js';
 import { createLocalBackend } from './backends/local.js';
 
 const PREFS_KEY = 'mileagemate:prefs';
@@ -363,8 +364,8 @@ export async function getDocument(id) {
   return x ? copy(x) : null;
 }
 
-/** `file` is { bytes, mimeType, fileName, size }, or null to keep the stored file. */
-export async function saveDocument(data, file = null) {
+/** `files` is { front, back, page3, page4 }, each { bytes, mimeType, fileName, size }; one left out keeps its stored file. */
+export async function saveDocument(data, files = {}) {
   const d = await ensureLoaded();
   if (!canKeepImages()) throw new StoreError('Sign in to keep documents.');
   const old = data.id ? d.documents.find((x) => x.id === data.id) : null;
@@ -373,9 +374,10 @@ export async function saveDocument(data, file = null) {
   if (vehicleId && !d.vehicles.some((v) => v.id === vehicleId)) throw new StoreError('Choose a vehicle that still exists.');
   const errors = Object.values(validateDocument({ ...data, vehicleId }));
   if (errors.length) throw new StoreError(errors[0]);
-  if (!old && !file) throw new StoreError('Add a photo or PDF.');
-  if (file) {
-    const problem = fileProblem(file);
+  if (!old && !files.front) throw new StoreError('Add the front.');
+  const sides = Object.entries(files).filter(([, f]) => f);
+  for (const [, f] of sides) {
+    const problem = fileProblem(f);
     if (problem) throw new StoreError(problem);
   }
   if (!old) {
@@ -388,11 +390,11 @@ export async function saveDocument(data, file = null) {
     type: data.type,
     title: data.type === 'other' ? String(data.title).trim().slice(0, 60) : null,
     expiryDate: data.expiryDate || null,
-    ...(file ? { fileName: String(file.fileName || 'document').slice(0, 120), mimeType: file.mimeType, fileSize: file.size } : {}),
+    ...Object.assign({}, ...sides.map(([side, f]) => sideFields(side, f))),
   };
   const saved = old ? { ...old, ...fields, updatedAt: now() } : { id: newId(), ...fields, createdAt: now(), updatedAt: now() };
   await apply(
-    { putDocuments: [saved], putDocumentFiles: file ? [{ doc: saved, bytes: file.bytes, mimeType: file.mimeType }] : [] },
+    { putDocuments: [saved], putDocumentFiles: sides.map(([side, f]) => ({ doc: saved, side, bytes: f.bytes, mimeType: f.mimeType })) },
     { ...d, documents: [...d.documents.filter((x) => x.id !== saved.id), saved] },
   );
   return copy(saved);
@@ -406,9 +408,9 @@ export async function deleteDocument(id) {
 }
 
 /** The stored file: { bytes, mimeType }. */
-export async function getDocumentFile(doc) {
+export async function getDocumentFile(doc, side = 'front') {
   if (!backend.loadDocumentFile) throw new StoreError('Sign in to open documents.');
-  const file = await backend.loadDocumentFile(doc);
+  const file = await backend.loadDocumentFile(doc, side);
   if (!file) throw new StoreError('This file could not be found.');
   return file;
 }
@@ -474,6 +476,22 @@ export async function busiestVehicleId() {
     if (s) { s.n += 1; if (e.date > s.last) s.last = e.date; }
   }
   return [...stats.entries()].sort((a, b) => b[1].n - a[1].n || b[1].last.localeCompare(a[1].last))[0]?.[0] || null;
+}
+
+// ---- Usage summary and admin ---------------------------------------------------------
+
+/** Keep this user's name, email and counts up to date for the owner. Never blocks the app. */
+export async function publishUsage(profile) {
+  if (!backend.saveUsage) return;
+  try {
+    await backend.saveUsage({ ...profile, ...usageSummary(await ensureLoaded()) });
+  } catch { /* the app works without it */ }
+}
+
+/** Every user's profile and counts. Refused by the security rules unless this is the owner. */
+export async function listAllUsers() {
+  if (!backend.listUsers) throw new StoreError('Not available.');
+  return backend.listUsers();
 }
 
 // ---- Small preferences (last used vehicle, and so on) ----------------------------

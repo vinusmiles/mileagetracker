@@ -3,7 +3,7 @@
 import * as store from '../store.js';
 import { esc, fmt, icon, ricon, odometer, mileageHint, emptyState, toast } from '../ui.js';
 import { todayStr, monthKey, monthRange } from '../core/dates.js';
-import { inRange, totals, monthlyTotals } from '../core/calc.js';
+import { displayMileage, inRange, totals, monthlyTotals } from '../core/calc.js';
 import { fuelUnit } from '../core/model.js';
 import { analyseAll, monthlySpendChart, entryRow, compactRow, vehicleSubtitle, sampleTag, calcLegend, remindersHTML, dueLine } from './shared.js';
 import { vehicleReminders } from '../core/reminders.js';
@@ -73,8 +73,9 @@ async function renderOverview(main, vehicles, entries, analyses, reminders, chal
     const s = analyses.get(v.id).summary;
     const u = fuelUnit(v.fuelType);
     const last = s.lastEntry ? `Last fill ${fmt.date(s.lastEntry.date)}` : 'No fills yet';
-    const right = s.latestMileage !== null
-      ? `<span class="vtile-mileage"><b>${s.latestMileage.toFixed(1)}</b><small>km/${u}</small></span>`
+    const shown = displayMileage(s);
+    const right = shown
+      ? `<span class="vtile-mileage"><b>${shown.value.toFixed(1)}</b><small>km/${u}</small></span>`
       : `<span class="vtile-hint">Mileage after 2 full-tank fills</span>`;
     return `
       <li class="vtile">
@@ -150,7 +151,13 @@ function renderVehicle(main, v, analysis, entries, rem, vChallans = [], vDocs = 
   const u = fuelUnit(v.fuelType);
   const iv = s.latestInterval;
 
-  const hero = s.latestMileage !== null
+  const shown = displayMileage(s);
+  const hero = shown?.kind === 'average'
+    ? `<div class="hero-odo">
+         ${odometer(shown.value, { unit: `km/${u}`, size: 'odo-lg', label: `Average mileage ${fmt.mileage(shown.value, u)}` })}
+         <p class="hero-cap">Average mileage so far. Fill to a full tank to get the correct mileage.</p>
+       </div>`
+    : s.latestMileage !== null
     ? `<div class="hero-odo">
          ${odometer(s.latestMileage, { unit: `km/${u}`, size: 'odo-lg', label: `Latest mileage ${fmt.mileage(s.latestMileage, u)}` })}
          <p class="hero-cap">Latest mileage, from the full tanks on <span class="nowrap">${fmt.date(iv.startDate)}</span> and <span class="nowrap">${fmt.date(iv.endDate)}</span>: ${fmt.kmNumber(iv.distance)} km on ${fmt.qty(iv.fuel, u)}.</p>

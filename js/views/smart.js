@@ -115,7 +115,7 @@ function slotHTML(kind) {
       <div class="photo-actions">
         <label class="btn btn-sm file-btn btn-camera">${icon('camera')}${photo ? 'Retake' : 'Take photo'}
           <input type="file" accept="image/*" capture="environment" data-pick="${kind}"></label>
-        <label class="btn btn-sm file-btn btn-upload">${icon('image')}${photo ? 'Replace' : 'Upload'}
+        <label class="btn btn-sm file-btn">${icon('image')}${photo ? 'Replace' : 'Upload'}
           <input type="file" accept="image/jpeg,image/png,image/webp" data-pick="${kind}"></label>
         ${photo ? `<button class="btn btn-sm btn-quiet" type="button" data-remove="${kind}">Remove</button>` : ''}
       </div>
@@ -496,7 +496,7 @@ function snapshot(video, digitalZoom = 1) {
 }
 
 /** Full-screen camera. Resolves with a prepared photo, or 'manual', or null (closed). */
-function cameraOverlay(main, { title, hint, allowManual }) {
+export function cameraOverlay(main, { title, hint, allowManual, prepare = preparePhoto, uploadAccept = 'image/jpeg,image/png,image/webp' }) {
   return new Promise((resolve) => {
     const el = document.createElement('div');
     el.className = 'cam';
@@ -512,7 +512,7 @@ function cameraOverlay(main, { title, hint, allowManual }) {
         <p class="cam-msg" hidden></p>
       </div>
       <div class="cam-bottom">
-        <label class="cam-side">${icon('image')}<span>Upload</span><input type="file" accept="image/jpeg,image/png,image/webp" data-upload></label>
+        <label class="cam-side">${icon('image')}<span>Upload</span><input type="file" accept="${uploadAccept}" data-upload></label>
         <button type="button" class="cam-shutter" data-shoot aria-label="Take photo"><svg viewBox="0 0 96 96" aria-hidden="true" focusable="false"><defs><linearGradient id="shg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0C6B32"/><stop offset="1" stop-color="#4BA707"/></linearGradient></defs><circle cx="48" cy="48" r="44" fill="url(#shg)"/><path d="M26 40a5.5 5.5 0 0 1 5.5-5.5h5.5l3.3-4.5h15.4l3.3 4.5h5.5A5.5 5.5 0 0 1 70 40v19.5a5.5 5.5 0 0 1-5.5 5.5h-33A5.5 5.5 0 0 1 26 59.5z" fill="#fff"/><circle cx="48" cy="50" r="11.5" fill="#0C6B32"/><rect x="43" y="43.5" width="7" height="12" rx="1.4" fill="#fff"/><rect x="44.4" y="45.2" width="4.2" height="3" rx=".6" fill="#0C6B32"/><path d="M50 47.5h1.3a1.1 1.1 0 0 1 1.1 1.1v3.7a1.1 1.1 0 0 0 2.2 0v-5.6l-1.5-1.7" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         ${allowManual
           ? `<button type="button" class="cam-side" data-manual>${icon('keyboard')}<span>Type it</span></button>`
@@ -529,7 +529,7 @@ function cameraOverlay(main, { title, hint, allowManual }) {
     const useFile = async (file) => {
       if (!file) return;
       msg.hidden = false; msg.textContent = 'Preparing photo…';
-      try { finish(await preparePhoto(file)); } catch (e) { msg.textContent = e instanceof ImageError ? e.message : 'This photo could not be used.'; }
+      try { finish(await prepare(file)); } catch (e) { msg.textContent = e instanceof ImageError ? e.message : 'This photo could not be used.'; }
     };
 
     let zoom = 1;
@@ -634,7 +634,7 @@ export async function renderCamera(main, ctx) {
       <h2>Odometer <span class="muted">(optional)</span></h2>
       <div class="odo-row">
         <input id="odoKm" type="text" inputmode="numeric" autocomplete="off" placeholder="km on the ODO">
-        <button type="button" class="btn btn-upload" data-odo-photo>${icon('camera')}Photo</button>
+        <button type="button" class="btn" data-odo-photo>${icon('camera')}Photo</button>
       </div>
       <p class="hint" data-odo-hint>In a hurry? Skip it and add it later.</p>
       <div class="sheet-links"><button type="button" class="link-btn" data-review>Check details first</button></div>

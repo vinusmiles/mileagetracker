@@ -1,5 +1,6 @@
 // Settings: where data is stored, sample data, and reset.
 
+import { APP_VERSION } from '../core/admin.js';
 import * as store from '../store.js';
 import * as auth from '../auth.js';
 import { toast, confirmDialog, esc, icon } from '../ui.js';
@@ -33,7 +34,7 @@ export async function render(main, { refresh }) {
     <section class="block">
       <h2>Your data</h2>
       <p>${cloud
-        ? 'Saved to your private cloud account. Only you can read it. A copy is kept in this browser so the app opens quickly and works with a weak signal; signing out removes it.'
+        ? 'Saved to your private cloud account. Your vehicles, fuel, service records and documents can be read only by you. A copy is kept in this browser so the app opens quickly and works with a weak signal; signing out removes it.'
         : persistent
           ? 'Everything is saved in this browser on this device. Clearing the browser’s site data removes it.'
           : '<strong>This browser is blocking storage</strong>, so changes will be lost when you close the page. Private or incognito mode usually causes this.'}</p>
@@ -53,7 +54,7 @@ export async function render(main, { refresh }) {
 
     <section class="block">
       <h2>About</h2>
-      <p>GaadiKhata, version 2.5.</p>
+      <p>GaadiKhata, version ${APP_VERSION}.</p>
       <p class="muted">© 2026 GaadiKhata. All rights reserved.</p>
     </section>
 

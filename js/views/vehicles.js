@@ -1,5 +1,8 @@
 // My vehicles: list, add, edit, delete.
 
+import { displayMileage } from '../core/calc.js';
+import { betaOn } from '../beta.js';
+import { fuelUnit } from '../core/model.js';
 import * as store from '../store.js';
 import { esc, fmt, icon, emptyState, field, choices, showFieldErrors, busy, toast, confirmDialog, req, ricon } from '../ui.js';
 import { VEHICLE_TYPES, FUEL_TYPES, LIMITS } from '../core/model.js';
@@ -24,6 +27,7 @@ export async function renderList(main) {
   const items = vehicles.map((v) => {
     const s = analyses.get(v.id).summary;
     const id = encodeURIComponent(v.id);
+    const shown = displayMileage(s);
     return `
       <li class="vcard vcard-tap">
         <a class="vtile-link" href="#/?v=${id}" aria-label="${esc(v.nickname)} details"></a>
@@ -34,10 +38,12 @@ export async function renderList(main) {
             <p class="vrow-sub">${vehicleSubtitle(v)}</p>
           </div>
         </div>
+        ${shown ? `<p class="vcard-mileage"><b>${fmt.mileage(shown.value, fuelUnit(v.fuelType))}</b> <span>${shown.kind === 'average' ? 'average so far' : 'latest mileage'}</span></p>` : '<p class="vcard-meta">Mileage after 2 full-tank fills</p>'}
         <p class="vcard-meta">${fmt.km(s.latestOdometer)} · ${s.entryCount} ${s.entryCount === 1 ? 'fill' : 'fills'}</p>
         <div class="actions actions-tight vcard-actions">
-          <a class="btn btn-primary btn-sm" href="#/fuel/new?v=${id}">${icon('plus')}Fuel</a>
-          <a class="btn btn-sm" href="#/service/add?v=${id}">${icon('plus')}Service</a>
+          <a class="vbtn vbtn-fuel" href="#/fuel/new?v=${id}">${icon('plus')}Fuel</a>
+          <a class="vbtn vbtn-service" href="#/service/add?v=${id}">${icon('plus')}Service</a>
+          ${betaOn ? `<a class="vbtn vbtn-docs" href="#/documents?v=${id}">View documents</a>` : ''}
         </div>
       </li>`;
   }).join('');

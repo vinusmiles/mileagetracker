@@ -100,6 +100,15 @@ export function analyseVehicle(entries, vehicle = null) {
   return { rows, intervals, summary: summarise(sorted, rows, intervals, valid, vehicle) };
 }
 
+/**
+ * The mileage to show for a vehicle. After a partial fill the latest stretch is not finished,
+ * so show the average so far. { value, kind: 'latest' | 'average' }, or null.
+ */
+export function displayMileage(summary) {
+  if (summary.lastEntry && !summary.lastEntry.fullTank && summary.averageMileage !== null) return { value: summary.averageMileage, kind: 'average' };
+  return summary.latestMileage !== null ? { value: summary.latestMileage, kind: 'latest' } : null;
+}
+
 /** Weighted average: total distance / total fuel over valid intervals. */
 export function averageMileage(validIntervals) {
   const dist = validIntervals.reduce((s, iv) => s + iv.distance, 0);

@@ -37,11 +37,18 @@ export function challansSection(vehicle, challans) {
             ? `<p>Your number: <strong data-reg>${esc(vehicle.registration)}</strong> <button type="button" class="link-btn" data-copy-reg>Copy</button></p>`
             : `<p class="muted">Add the registration number in <a href="#/vehicles/${enc(vehicle.id)}/edit">Edit vehicle</a> to copy it here.</p>`}
           <p class="hint">The official site asks for the number and a captcha, then shows any challans. Add what you find here.</p>
-          <div class="portal-links">${portals.map((p, i) => `<a class="btn btn-sm${i === 0 ? ' btn-primary' : ''}" href="${p.url}" target="_blank" rel="noopener">${esc(p.name)} ↗</a>`).join('')}</div>
+          <div class="portal-links">${portals.map((p, i) => `<a class="btn btn-sm${i === 0 ? ' btn-primary' : ''}" href="${p.url}" target="_blank" rel="noopener" data-copy-open="${esc(vehicle.registration || '')}">${esc(p.name)} ↗</a>`).join('')}</div>
         </div>
       </details>
     </section>`;
 }
+
+// Opening an official site: another site cannot be filled in from here, so copy the number first.
+document.addEventListener('click', async (ev) => {
+  const reg = ev.target.closest('[data-copy-open]')?.dataset.copyOpen?.replace(/\s+/g, '');
+  if (!reg) return;
+  try { await navigator.clipboard.writeText(reg); toast(`${reg} copied. Paste it on the challan site.`); } catch { toast(`Your number: ${reg}`); }
+});
 
 /** Wire the copy button inside the section. */
 export function bindChallansSection(main) {
@@ -76,7 +83,7 @@ export async function renderForm(main, { params, query, navigate }) {
         <div class="slot-head"><div><h2>${icon('scan')} Scan the challan</h2><p class="hint">Photo of the notice, or a screenshot of the SMS or challan page${demo ? ' (demo reader: values are made up)' : ''}</p></div></div>
         <div class="photo-actions">
           <label class="btn btn-sm file-btn btn-camera">${icon('camera')}Take photo<input type="file" accept="image/*" capture="environment" data-pick></label>
-          <label class="btn btn-sm file-btn btn-upload">${icon('image')}Upload<input type="file" accept="image/jpeg,image/png,image/webp" data-pick></label>
+          <label class="btn btn-sm file-btn">${icon('image')}Upload<input type="file" accept="image/jpeg,image/png,image/webp" data-pick></label>
         </div>
         <p class="hint" data-scan-status hidden></p>
         <p class="field-error" data-scan-error hidden></p>

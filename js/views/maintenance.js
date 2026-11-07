@@ -249,7 +249,7 @@ export async function renderScan(main, ctx) {
         <div data-pages>${pagesHTML()}</div>
         <div class="photo-actions">
           <label class="btn btn-sm file-btn btn-camera">${icon('camera')}Take photo<input type="file" accept="image/*" capture="environment" data-add></label>
-          <label class="btn btn-sm file-btn btn-upload">${icon('image')}Upload pages<input type="file" accept="image/jpeg,image/png,image/webp" multiple data-add></label>
+          <label class="btn btn-sm file-btn">${icon('image')}Upload pages<input type="file" accept="image/jpeg,image/png,image/webp" multiple data-add></label>
         </div>
         <p class="field-error" data-page-error hidden></p>
       </section>
